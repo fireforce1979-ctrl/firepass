@@ -466,9 +466,16 @@
         console.warn("카메라 권한 필요:", err);
       });
 
-      // 서비스 워커 등록 (PWA 오프라인 지원)
+      // 서비스 워커 해제 및 캐시 강제 초기화 (모바일 실시간 업데이트 보장)
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js').catch(err => console.log('SW 실패:', err));
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let r of registrations) r.unregister();
+        });
+      }
+      if ('caches' in window) {
+        caches.keys().then(names => {
+          for (let name of names) caches.delete(name);
+        });
       }
     });
   </script>

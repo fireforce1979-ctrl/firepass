@@ -186,16 +186,23 @@ async function openSceneModal() {
           const createdDate = new Date(s.created_at).toLocaleDateString();
           return `
             <div onclick="selectScene('${s.id}', '${s.title.replace(/'/g, "\\'")}')" 
-                 style="padding:12px;border-radius:10px;background:${isSelected ? '#374151' : '#111827'};border:1px solid ${isSelected ? '#ef4444' : '#374151'};display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all 0.2s;">
-              <div>
-                <div style="font-weight:bold;font-size:0.9rem;color:${isSelected ? '#f87171' : '#fff'};">
+                 style="padding:10px 12px;border-radius:10px;background:${isSelected ? '#374151' : '#111827'};border:1px solid ${isSelected ? '#ef4444' : '#374151'};display:flex;justify-content:space-between;align-items:center;cursor:pointer;transition:all 0.2s;gap:8px;">
+              <div style="min-width:0;flex:1;">
+                <div style="font-weight:bold;font-size:0.9rem;color:${isSelected ? '#f87171' : '#fff'};overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
                   ${isSelected ? '✔ ' : ''}${s.title}
                 </div>
                 <div style="font-size:0.7rem;color:#9ca3af;margin-top:2px;">개설일: ${createdDate}</div>
               </div>
-              <span style="font-size:0.75rem;padding:4px 8px;border-radius:6px;background:${isSelected ? '#ef4444' : '#4b5563'};color:#fff;font-weight:bold;">
-                ${isSelected ? '현재 방' : '들어가기'}
-              </span>
+              <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+                <span style="font-size:0.75rem;padding:4px 8px;border-radius:6px;background:${isSelected ? '#ef4444' : '#4b5563'};color:#fff;font-weight:bold;">
+                  ${isSelected ? '현재 방' : '들어가기'}
+                </span>
+                <button onclick="event.stopPropagation(); deleteScene('${s.id}', '${s.title.replace(/'/g, "\\'")}')" 
+                        style="font-size:0.75rem;padding:4px 8px;border-radius:6px;background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b;cursor:pointer;font-weight:bold;"
+                        title="훈련 방 및 출입기록 영구 삭제">
+                  🗑️ 삭제
+                </button>
+              </div>
             </div>
           `;
         }).join('');
@@ -205,6 +212,57 @@ async function openSceneModal() {
     } catch (e) {
       document.getElementById('sceneListContainer').innerHTML = '<div style="font-size:0.8rem;color:#ef4444;text-align:center;padding:16px;">목록 조회 오류: ' + e.message + '</div>';
     }
+  }
+}
+
+async function deleteScene(sceneId, sceneTitle) {
+  // 1. 확인 팝업
+  if (!confirm(`[${sceneTitle}] 훈련 방을 삭제하시겠습니까?\n삭제 시 해당 훈련의 모든 출입 기록도 함께 영구 삭제됩니다.`)) {
+    return;
+  }
+
+  // 2. 관리자 비밀번호 확인 (최초 기본: 0119)
+  const inputPw = prompt("훈련 방 삭제를 위해 관리자 비밀번호를 입력해주세요.\n(최초 기본 비밀번호: 0119)");
+  if (inputPw === null) return; // 취소 클릭
+  if (inputPw.trim() !== "0119") {
+    alert("❌ 비밀번호가 일치하지 않습니다.\n(초기 비밀번호: 0119)");
+    return;
+  }
+
+  const client = (typeof getSafeSupabaseClient === 'function' ? getSafeSupabaseClient() : getSupabaseClient());
+  if (!client) {
+    alert("Supabase 연결이 필요합니다.");
+    return;
+  }
+
+  try {
+    // 3. 해당 훈련 방의 출입 로그 삭제
+    await client.from('entry_exit_logs').delete().eq('scene_id', sceneId);
+
+    // 4. 훈련 방 레코드 삭제
+    const { error } = await client.from('incident_scenes').delete().eq('id', sceneId);
+    if (error) {
+      alert("훈련 방 삭제 실패: " + error.message);
+      return;
+    }
+
+    alert(`[${sceneTitle}] 훈련 방이 안전하게 삭제되었습니다.`);
+
+    // 5. 현재 접속 중인 방을 삭제했을 경우 안전하게 대체 방으로 이동
+    const current = getActiveScene();
+    if (current.id === sceneId) {
+      const { data: remain } = await client.from('incident_scenes').select('*').order('created_at', { ascending: false }).limit(1);
+      if (remain && remain.length > 0) {
+        setActiveScene(remain[0].id, remain[0].title);
+      } else {
+        setActiveScene("11111111-1111-1111-1111-111111111111", "기본 훈련 현장");
+      }
+    } else {
+      // 다른 방을 삭제했을 때는 모달 목록 즉시 새로고침
+      openSceneModal();
+    }
+  } catch (err) {
+    alert("삭제 처리 중 오류가 발생했습니다: " + err.message);
   }
 }
 

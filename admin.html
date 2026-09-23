@@ -238,6 +238,18 @@
   </div>
 
   <script>
+    // 서비스 워커 해제 및 캐시 강제 초기화 (모바일 실시간 업데이트 보장)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(registrations => {
+        for (let r of registrations) r.unregister();
+      });
+    }
+    if ('caches' in window) {
+      caches.keys().then(names => {
+        for (let name of names) caches.delete(name);
+      });
+    }
+
     // 1. config.js 누락 대비 자체 내장 접속 정보 (모바일 단독 파일 실행 완벽 지원)
     const EMBEDDED_SUPABASE_URL = "https://pnrlxmikvglfbipkootb.supabase.co";
     const EMBEDDED_SUPABASE_KEY = "sb_publishable_wu1okv3-NmPDXcoeGRjalQ_9-fiswGc";
