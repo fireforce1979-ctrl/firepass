@@ -13,92 +13,125 @@
   <style>
     /* 화면용 스티커 카드 스타일 */
     .label-card {
-      width: 120px;
-      min-height: 145px;
+      width: 170px;
+      min-height: 220px;
       border: 1px dashed #4b5563;
-      padding: 8px 6px;
-      border-radius: 12px;
+      padding: 12px 10px;
+      border-radius: 14px;
       background: #111827;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: space-between;
       position: relative;
+      box-sizing: border-box;
     }
-    .label-card .qr-box img,
+    .label-card .qr-box {
+      width: 140px;
+      height: 140px;
+      background: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 6px;
+    }
+    .label-card .qr-box img {
+      width: 130px !important;
+      height: 130px !important;
+      display: block !important;
+      margin: 0 auto !important;
+    }
     .label-card .qr-box canvas {
-      width: 80px !important;
-      height: 80px !important;
-      display: block;
+      display: none !important; /* 캔버스 숨김 (이미지만 출력하여 중복 버그 방지) */
     }
 
-    /* 🖨️ A4 용지 실물 2cm 미니 라벨 인쇄 전용 스타일 (가로세로 약 2cm) */
+    /* 🖨️ A4 용지 실물 5cm QR 라벨 인쇄 전용 스타일 (3열 그리드 분배 & 겹침 완벽 방지) */
     @media print {
       @page {
         size: A4 portrait;
-        margin: 10mm 8mm; /* 여백 10mm */
+        margin: 12mm 10mm; /* A4 상하좌우 여백 */
       }
       body {
         background: white !important;
         color: black !important;
         padding: 0 !important;
+        margin: 0 !important;
       }
       .no-print {
         display: none !important;
       }
       .print-page {
-        display: flex !important;
-        flex-wrap: wrap !important;
-        gap: 2.5mm !important; /* 스티커 간격 */
-        padding: 0 !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 58mm) !important; /* A4 가로 3열 완벽 균등 분배 */
+        gap: 8mm 6mm !important; /* 카드 간격 */
+        justify-content: center !important;
         width: 100% !important;
+        box-sizing: border-box !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
       }
       .label-card {
-        width: 22mm !important;   /* 가로 약 2.2cm */
-        height: 25mm !important;  /* 세로 약 2.5cm */
+        width: 58mm !important;   /* 가로 5.8cm */
+        height: 76mm !important;  /* 세로 7.6cm */
         box-sizing: border-box !important;
-        border: 0.5px dashed #888 !important; /* 가위/칼 절취 가이드선 */
-        padding: 1mm 0.5mm !important;
+        border: 1px dashed #666 !important; /* 가위/칼 절취 가이드선 */
+        padding: 4mm 3mm !important;
         background: white !important;
         color: black !important;
-        border-radius: 1.5mm !important;
+        border-radius: 3mm !important;
         page-break-inside: avoid !important;
+        break-inside: avoid !important;
         display: flex !important;
         flex-direction: column !important;
         align-items: center !important;
         justify-content: space-between !important;
         box-shadow: none !important;
+        overflow: hidden !important;
       }
       .label-card .label-name {
-        font-size: 6pt !important;
+        font-size: 11pt !important;
         font-weight: 900 !important;
-        line-height: 1 !important;
+        line-height: 1.2 !important;
         color: black !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
-        max-width: 20mm !important;
+        text-align: center !important;
+        width: 100% !important;
       }
       .label-card .qr-box {
+        width: 50mm !important;   /* QR 박스 5cm */
+        height: 50mm !important;
         padding: 0 !important;
         background: white !important;
-        margin: 0.5mm 0 !important;
+        margin: 1mm 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        border: none !important;
+        box-shadow: none !important;
+        overflow: hidden !important;
       }
-      .label-card .qr-box img,
-      .label-card .qr-box canvas {
-        width: 16mm !important;   /* QR 본체 약 1.6cm */
-        height: 16mm !important;
+      .label-card .qr-box img {
+        width: 48mm !important;   /* QR 코드 본체 약 4.8cm ~ 5cm */
+        height: 48mm !important;
         display: block !important;
+        margin: 0 auto !important;
+      }
+      .label-card .qr-box canvas {
+        display: none !important; /* qrcode.js 중복 캔버스 완전 차단 */
       }
       .label-card .label-team {
-        font-size: 4.5pt !important;
+        font-size: 8.5pt !important;
         font-weight: bold !important;
-        line-height: 1 !important;
-        color: #222 !important;
+        line-height: 1.2 !important;
+        color: #333 !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
-        max-width: 20mm !important;
+        text-align: center !important;
+        width: 100% !important;
       }
     }
   </style>
@@ -188,18 +221,18 @@
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 no-print bg-gray-900 border border-gray-800 p-3 rounded-xl">
         <div>
           <div class="flex items-center gap-2">
-            <h2 class="text-base font-black text-white">🖨️ 헬멧 부착용 2cm 미니 라벨 스티커</h2>
+            <h2 class="text-base font-black text-white">🖨️ 헬멧/장비 부착용 5cm 라벨 스티커</h2>
             <span class="text-xs px-2 py-0.5 rounded-full bg-red-950 text-red-400 border border-red-800 font-bold">등록: <span id="memberTotalCount">0</span>명</span>
           </div>
-          <p class="text-xs text-gray-400 mt-1">인쇄 시 <b>가로 2.2cm × 세로 2.5cm(QR 1.6cm)</b> 크기로 A4 용지 1장에 수십 개가 촘촘히 출력됩니다.</p>
+          <p class="text-xs text-gray-400 mt-1">인쇄 시 <b>가로 5.8cm × 세로 7.6cm (QR 5cm)</b> 크기로 A4 1장에 3열씩 겹치지 않고 정갈하게 인쇄됩니다.</p>
         </div>
         <button onclick="window.print()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-sm rounded-lg flex items-center gap-1 shadow shrink-0">
-          <span>🖨️ 2cm 스티커 인쇄</span>
+          <span>🖨️ 5cm 라벨 인쇄</span>
         </button>
       </div>
 
-      <div id="labelsGrid" class="print-page flex flex-wrap gap-2.5">
-        <!-- 2cm QR 라벨 카드가 여기에 렌더링됩니다 -->
+      <div id="labelsGrid" class="print-page flex flex-wrap gap-4">
+        <!-- 5cm QR 라벨 카드가 여기에 렌더링됩니다 -->
       </div>
     </section>
   </div>
@@ -310,11 +343,11 @@
 
         grid.appendChild(card);
 
-        // QR 생성 (QRCode.js) - 140px 해상도로 선명하게 그린 후 CSS로 초소형 축소
+        // QR 생성 (QRCode.js) - 200px 고해상도로 선명하게 렌더링 (5cm 인쇄 최적화)
         new QRCode(document.getElementById(qrContainerId), {
           text: m.qr_token,
-          width: 140,
-          height: 140,
+          width: 200,
+          height: 200,
           colorDark: "#000000",
           colorLight: "#ffffff",
           correctLevel: QRCode.CorrectLevel.M
