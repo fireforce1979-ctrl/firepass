@@ -64,8 +64,8 @@
         <button onclick="showConfigPrompt()" class="p-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-xl border border-gray-700" title="API 설정">
           ⚙️
         </button>
-        <a id="linkToScanner" href="index.html" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-sm font-bold rounded-xl shadow">
-          📱 스캐너 열기
+        <a href="admin.html" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-xl border border-gray-700 shadow">
+          🪪 대원/QR 관리
         </a>
       </div>
     </div>
@@ -195,17 +195,16 @@
       // 2) 현재 방의 출입 로그만 로드 및 상태 복원
       await fetchAllLogs();
 
-      // 3) 실시간 구독 (Supabase Realtime - 현재 방 이벤트만 수신)
+      // 3) 실시간 구독 (Supabase Realtime - INSERT/UPDATE/DELETE 모두 감지)
       supabaseClient
         .channel(`dashboard-realtime-${currentScene.id}`)
         .on('postgres_changes', {
-          event: 'INSERT',
+          event: '*', // INSERT, UPDATE, DELETE 전체 감지
           schema: 'public',
           table: 'entry_exit_logs'
-        }, payload => {
-          if (payload.new && payload.new.scene_id === currentScene.id) {
-            handleIncomingLog(payload.new);
-          }
+        }, async payload => {
+          console.log('실시간 변경 감지:', payload.eventType);
+          await fetchAllLogs();
         })
         .subscribe();
 
@@ -415,7 +414,7 @@
         const date = new Date(log.tagged_at);
 
         return `
-          <div class="p-3 bg-gray-800/80 rounded-xl border border-gray-700/60 flex justify-between items-center">
+          <div class="p-3 bg-gray-800/80 rounded-xl border border-gray-700/60 flex justify-between items-center hover:border-gray-500 transition">
             <div class="flex items-center gap-2">
               <span class="px-2 py-0.5 rounded text-xs font-black ${isEntry ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}">
                 ${isEntry ? '진입' : '철수'}
@@ -425,12 +424,171 @@
                 <div class="text-[11px] text-gray-400">${member.team_name} ${log.is_manual ? '• 수동입력' : ''}</div>
               </div>
             </div>
-            <div class="text-xs text-gray-400 font-mono">
-              ${date.toLocaleTimeString()}
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-400 font-mono">${date.toLocaleTimeString()}</span>
+              <button onclick="openEditLogModal('${log.id}')" class="px-2 py-1 bg-gray-700 hover:bg-yellow-500 text-gray-300 hover:text-black font-bold text-xs rounded-lg transition" title="출입 기록 수정 / 삭제">
+                ✏️ 수정
+              </button>
             </div>
           </div>
         `;
       }).join('');
+    }
+
+    // ==========================================
+    // 4. 출입 오기록 수정 및 삭제 모달
+    // ==========================================
+    function openEditLogModal(logId) {
+      const log = rawLogs.find(l => l.id === logId);
+      if (!log) return;
+
+      const member = firefightersMap[log.firefighter_id] || firefightersMap[log.qr_token] || {
+        name: '미등록 대원',
+        rank: '대원',
+        team_name: '현장'
+      };
+
+      // 기존 기록 시간을 datetime-local 포맷(YYYY-MM-DDTHH:mm)으로 변환
+      const logDate = new Date(log.tagged_at);
+      const localIso = new Date(logDate.getTime() - (logDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+
+      const modalId = 'editLogModal';
+      const existing = document.getElementById(modalId);
+      if (existing) existing.remove();
+
+      const modalHtml = `
+        <div id="${modalId}" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
+          <div style="background:#1f2937;color:#fff;padding:24px;border-radius:20px;max-width:480px;width:100%;border:1px solid #374151;font-family:sans-serif;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <h2 style="font-size:1.25rem;font-weight:900;color:#eab308;display:flex;align-items:center;gap:6px;">
+                <span>✏️</span> 출입 기록 수정 / 삭제
+              </h2>
+              <button onclick="document.getElementById('${modalId}').remove()" style="background:none;border:none;color:#9ca3af;font-size:1.5rem;cursor:pointer;">✕</button>
+            </div>
+            
+            <p style="font-size:0.8rem;color:#9ca3af;margin-bottom:16px;">
+              잘못 기록된 진입/철수 상태나 태깅 시간을 바로잡을 수 있습니다.
+            </p>
+
+            <!-- 대상 대원 정보 -->
+            <div style="background:#111827;padding:12px;border-radius:12px;border:1px solid #374151;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:1rem;font-weight:900;color:#fff;">${member.rank} ${member.name}</div>
+                <div style="font-size:0.75rem;color:#f87171;">${member.team_name}</div>
+              </div>
+              <span style="font-size:0.75rem;padding:4px 8px;border-radius:6px;background:#374151;color:#d1d5db;">
+                ${log.is_manual ? '수동 입력 건' : 'QR 스캔 건'}
+              </span>
+            </div>
+
+            <!-- 구분(진입 / 철수) 선택 -->
+            <div style="margin-bottom:14px;">
+              <label style="display:block;font-size:0.75rem;font-weight:bold;color:#d1d5db;margin-bottom:6px;">출입 상태 구분 *</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <label id="labelEditEntry" style="padding:10px;border-radius:10px;border:2px solid ${log.action_type === 'ENTRY' ? '#22c55e' : '#374151'};background:${log.action_type === 'ENTRY' ? '#14532d' : '#111827'};text-align:center;font-weight:bold;font-size:0.9rem;cursor:pointer;display:block;">
+                  <input type="radio" name="editActionType" value="ENTRY" ${log.action_type === 'ENTRY' ? 'checked' : ''} onchange="updateEditRadioUI()" style="display:none;" />
+                  🟢 진입 (ENTRY)
+                </label>
+                <label id="labelEditExit" style="padding:10px;border-radius:10px;border:2px solid ${log.action_type === 'EXIT' ? '#ef4444' : '#374151'};background:${log.action_type === 'EXIT' ? '#7f1d1d' : '#111827'};text-align:center;font-weight:bold;font-size:0.9rem;cursor:pointer;display:block;">
+                  <input type="radio" name="editActionType" value="EXIT" ${log.action_type === 'EXIT' ? 'checked' : ''} onchange="updateEditRadioUI()" style="display:none;" />
+                  🔴 철수 (EXIT)
+                </label>
+              </div>
+            </div>
+
+            <!-- 태깅 일시 수정 -->
+            <div style="margin-bottom:20px;">
+              <label style="display:block;font-size:0.75rem;font-weight:bold;color:#d1d5db;margin-bottom:6px;">태깅 일시 (시간 보정) *</label>
+              <input id="inputEditTime" type="datetime-local" value="${localIso}" 
+                     style="width:100%;padding:10px;border-radius:8px;background:#111827;border:1px solid #4b5563;color:#fff;font-size:0.875rem;box-sizing:border-box;" />
+            </div>
+
+            <!-- 하단 버튼: 삭제 vs 저장 -->
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <button onclick="deleteLogRecord('${log.id}')" 
+                      style="padding:10px 16px;border-radius:8px;background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b;font-weight:bold;font-size:0.875rem;cursor:pointer;">
+                🗑️ 기록 삭제
+              </button>
+              <div style="display:flex;gap:8px;">
+                <button onclick="document.getElementById('${modalId}').remove()" 
+                        style="padding:10px 16px;border-radius:8px;background:#374151;color:#fff;border:none;cursor:pointer;font-size:0.875rem;">
+                  취소
+                </button>
+                <button onclick="saveLogEdit('${log.id}')" 
+                        style="padding:10px 20px;border-radius:8px;background:#eab308;color:#000;border:none;font-weight:black;font-size:0.875rem;cursor:pointer;">
+                  💾 수정 저장
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    function updateEditRadioUI() {
+      const selected = document.querySelector('input[name="editActionType"]:checked').value;
+      const entryLabel = document.getElementById('labelEditEntry');
+      const exitLabel = document.getElementById('labelEditExit');
+      if (selected === 'ENTRY') {
+        entryLabel.style.borderColor = '#22c55e';
+        entryLabel.style.background = '#14532d';
+        exitLabel.style.borderColor = '#374151';
+        exitLabel.style.background = '#111827';
+      } else {
+        entryLabel.style.borderColor = '#374151';
+        entryLabel.style.background = '#111827';
+        exitLabel.style.borderColor = '#ef4444';
+        exitLabel.style.background = '#7f1d1d';
+      }
+    }
+
+    async function saveLogEdit(logId) {
+      const actionType = document.querySelector('input[name="editActionType"]:checked').value;
+      const timeVal = document.getElementById('inputEditTime').value;
+      if (!timeVal) return alert("태깅 시간을 입력해주세요.");
+
+      const newTimestamp = new Date(timeVal).toISOString();
+      const client = getSafeSupabaseClient();
+      if (!client) return alert("Supabase 연결이 필요합니다.");
+
+      const { error } = await client
+        .from('entry_exit_logs')
+        .update({
+          action_type: actionType,
+          tagged_at: newTimestamp
+        })
+        .eq('id', logId);
+
+      if (error) {
+        alert("수정 실패: " + error.message);
+      } else {
+        alert("출입 기록이 성공적으로 수정되었습니다!");
+        const modal = document.getElementById('editLogModal');
+        if (modal) modal.remove();
+        await fetchAllLogs(); // 전체 상태 즉시 재계산 및 화면 갱신
+      }
+    }
+
+    async function deleteLogRecord(logId) {
+      if (!confirm("정말 이 출입 기록을 삭제하시겠습니까?\n삭제 시 현장 진입/체류 상태가 이전 시점으로 즉시 복구됩니다.")) return;
+
+      const client = getSafeSupabaseClient();
+      if (!client) return alert("Supabase 연결이 필요합니다.");
+
+      const { error } = await client
+        .from('entry_exit_logs')
+        .delete()
+        .eq('id', logId);
+
+      if (error) {
+        alert("삭제 실패: " + error.message);
+      } else {
+        alert("출입 기록이 삭제되었습니다.");
+        const modal = document.getElementById('editLogModal');
+        if (modal) modal.remove();
+        await fetchAllLogs(); // 전체 상태 즉시 재계산 및 화면 갱신
+      }
     }
 
     // ==========================================
