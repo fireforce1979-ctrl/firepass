@@ -38,15 +38,19 @@
       <div>
         <h1 class="font-extrabold text-base tracking-tight leading-none">1차 통제선 현장 스캐너</h1>
         <div class="flex items-center gap-2 mt-1">
-          <span id="networkStatus" class="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-300 font-medium">● 온라인</span>
-          <span id="unsyncedBadge" class="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 font-medium">동기화 대기: 0건</span>
+          <button onclick="openSceneModal()" class="text-xs px-2 py-0.5 rounded-full bg-red-950 text-white font-bold border border-red-700 hover:bg-red-800 transition">
+            🏢 <span id="currentSceneBadge">로딩 중...</span>
+          </button>
+          <span id="networkStatus" class="text-[11px] px-1.5 py-0.5 rounded-full bg-green-500/20 text-green-300 font-medium">● 온라인</span>
+          <span id="unsyncedBadge" class="text-[11px] px-1.5 py-0.5 rounded-full bg-yellow-500/20 text-yellow-300 font-medium">대기: 0</span>
         </div>
       </div>
     </div>
     <div class="flex items-center gap-1.5">
+      <button onclick="openSceneModal()" class="p-2 bg-blue-900 hover:bg-blue-800 rounded-lg text-xs font-bold border border-blue-700 shadow" title="훈련 방 선택">🏢 방선택</button>
       <button onclick="toggleTorch()" id="btnTorch" class="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm border border-gray-700" title="플래시">🔦</button>
       <button onclick="showConfigPrompt()" class="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm border border-gray-700" title="설정">⚙️</button>
-      <a href="dashboard.html" class="p-2 bg-blue-700 hover:bg-blue-600 rounded-lg text-sm font-bold" title="관제 대시보드">📊</a>
+      <a id="linkToDashboard" href="dashboard.html" class="p-2 bg-blue-700 hover:bg-blue-600 rounded-lg text-sm font-bold" title="관제 대시보드">📊</a>
     </div>
   </header>
 
@@ -157,6 +161,7 @@
     }
 
     const supabaseClient = getSafeSupabaseClient();
+    let currentScene = { id: (typeof DEFAULT_SCENE_ID !== 'undefined' ? DEFAULT_SCENE_ID : "11111111-1111-1111-1111-111111111111"), title: '기본 훈련' };
 
     // ==========================================
     // 2. 사운드 및 진동 피드백 (AudioContext)
@@ -231,10 +236,10 @@
       // 1) 로컬 캐시에서 대원 정보 조회
       let member = await db.firefighters.get(token);
       
-      // 2) 출입 로그 레코드 생성
+      // 2) 출입 로그 레코드 생성 (선택된 훈련 방 ID로 기록)
       const logRecord = {
         id: crypto.randomUUID(),
-        scene_id: DEFAULT_SCENE_ID,
+        scene_id: currentScene.id,
         firefighter_id: member ? member.id : null,
         qr_token: token,
         action_type: currentScanMode,
@@ -413,7 +418,19 @@
     // ==========================================
     window.addEventListener('DOMContentLoaded', async () => {
       requestWakeLock();
-      checkConfigModal();
+      if (typeof checkConfigModal === 'function') checkConfigModal();
+
+      // 현재 선택된 훈련 방 정보 불러오기
+      if (typeof getActiveScene === 'function') {
+        currentScene = getActiveScene();
+      }
+      const badge = document.getElementById('currentSceneBadge');
+      if (badge) badge.innerText = currentScene.title;
+      const dashLink = document.getElementById('linkToDashboard');
+      if (dashLink) {
+        dashLink.href = `dashboard.html?scene=${currentScene.id}&title=${encodeURIComponent(currentScene.title)}`;
+      }
+
       await syncFirefightersCache();
       updateUnsyncedCount();
 
