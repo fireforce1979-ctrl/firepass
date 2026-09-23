@@ -11,28 +11,94 @@
   <script src="config.js"></script>
 
   <style>
-    /* A4 라벨지 인쇄 스타일 */
+    /* 화면용 스티커 카드 스타일 */
+    .label-card {
+      width: 120px;
+      min-height: 145px;
+      border: 1px dashed #4b5563;
+      padding: 8px 6px;
+      border-radius: 12px;
+      background: #111827;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+    }
+    .label-card .qr-box img,
+    .label-card .qr-box canvas {
+      width: 80px !important;
+      height: 80px !important;
+      display: block;
+    }
+
+    /* 🖨️ A4 용지 실물 2cm 미니 라벨 인쇄 전용 스타일 (가로세로 약 2cm) */
     @media print {
+      @page {
+        size: A4 portrait;
+        margin: 10mm 8mm; /* 여백 10mm */
+      }
       body {
         background: white !important;
         color: black !important;
+        padding: 0 !important;
       }
       .no-print {
         display: none !important;
       }
       .print-page {
-        display: grid !important;
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 16px !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 2.5mm !important; /* 스티커 간격 */
         padding: 0 !important;
+        width: 100% !important;
       }
       .label-card {
-        border: 2px dashed #999 !important;
-        page-break-inside: avoid;
-        padding: 12px !important;
+        width: 22mm !important;   /* 가로 약 2.2cm */
+        height: 25mm !important;  /* 세로 약 2.5cm */
+        box-sizing: border-box !important;
+        border: 0.5px dashed #888 !important; /* 가위/칼 절취 가이드선 */
+        padding: 1mm 0.5mm !important;
         background: white !important;
         color: black !important;
+        border-radius: 1.5mm !important;
+        page-break-inside: avoid !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: space-between !important;
         box-shadow: none !important;
+      }
+      .label-card .label-name {
+        font-size: 6pt !important;
+        font-weight: 900 !important;
+        line-height: 1 !important;
+        color: black !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 20mm !important;
+      }
+      .label-card .qr-box {
+        padding: 0 !important;
+        background: white !important;
+        margin: 0.5mm 0 !important;
+      }
+      .label-card .qr-box img,
+      .label-card .qr-box canvas {
+        width: 16mm !important;   /* QR 본체 약 1.6cm */
+        height: 16mm !important;
+        display: block !important;
+      }
+      .label-card .label-team {
+        font-size: 4.5pt !important;
+        font-weight: bold !important;
+        line-height: 1 !important;
+        color: #222 !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        max-width: 20mm !important;
       }
     }
   </style>
@@ -43,7 +109,7 @@
   <header class="bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-30 no-print">
     <div class="max-w-7xl mx-auto flex justify-between items-center">
       <div class="flex items-center gap-3">
-        <div class="p-2 bg-red-600 rounded-xl text-xl">🪪</div>
+        <img src="fire_emblem.png" alt="대한민국 소방 엠블럼" class="h-10 w-auto object-contain drop-shadow" />
         <div>
           <h1 class="font-extrabold text-lg">소방대원 관리 & 헬멧 QR 발급 센터</h1>
           <p class="text-xs text-gray-400">대원 등록 시 보안 난수 토큰이 부여된 헬멧 부착용 QR코드가 자동 생성됩니다.</p>
@@ -56,9 +122,6 @@
         <button onclick="window.print()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-sm rounded-lg flex items-center gap-1 shadow">
           <span>🖨️ QR 라벨 인쇄</span>
         </button>
-        <a href="index.html" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-lg border border-gray-700">
-          📱 스캐너
-        </a>
         <a href="dashboard.html" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-lg border border-gray-700">
           📊 관제 상황판
         </a>
@@ -122,16 +185,21 @@
 
     <!-- 우측: 등록된 대원 및 QR 라벨 그리드 (인쇄 시 이 영역 출력) -->
     <section class="lg:col-span-2">
-      <div class="flex justify-between items-center mb-3 no-print">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3 no-print bg-gray-900 border border-gray-800 p-3 rounded-xl">
         <div>
-          <h2 class="text-base font-black text-white">🖨️ 헬멧 부착용 QR 라벨 목록</h2>
-          <span class="text-xs text-gray-400">등록 총계: <b id="memberTotalCount" class="text-red-400">0</b>명</span>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-black text-white">🖨️ 헬멧 부착용 2cm 미니 라벨 스티커</h2>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-red-950 text-red-400 border border-red-800 font-bold">등록: <span id="memberTotalCount">0</span>명</span>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">인쇄 시 <b>가로 2.2cm × 세로 2.5cm(QR 1.6cm)</b> 크기로 A4 용지 1장에 수십 개가 촘촘히 출력됩니다.</p>
         </div>
-        <p class="text-xs text-gray-500">[QR 라벨 인쇄] 버튼을 누르면 A4 라벨 스티커 양식으로 즉시 출력됩니다.</p>
+        <button onclick="window.print()" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 font-bold text-sm rounded-lg flex items-center gap-1 shadow shrink-0">
+          <span>🖨️ 2cm 스티커 인쇄</span>
+        </button>
       </div>
 
-      <div id="labelsGrid" class="print-page grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        <!-- QR 라벨 카드가 여기에 렌더링됩니다 -->
+      <div id="labelsGrid" class="print-page flex flex-wrap gap-2.5">
+        <!-- 2cm QR 라벨 카드가 여기에 렌더링됩니다 -->
       </div>
     </section>
   </div>
@@ -224,31 +292,29 @@
 
       members.forEach((m, idx) => {
         const card = document.createElement('div');
-        card.className = "label-card bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col items-center justify-between text-center relative shadow";
+        card.className = "label-card shadow";
 
         const qrContainerId = `qr-${m.id}`;
         card.innerHTML = `
-          <div class="w-full flex justify-between items-start mb-2">
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-red-950 text-red-400 border border-red-800">${m.team_name}</span>
-            <button onclick="deleteFirefighter('${m.id}')" class="no-print text-gray-500 hover:text-red-400 text-xs font-bold">삭제</button>
-          </div>
+          <button onclick="deleteFirefighter('${m.id}')" class="no-print absolute top-1 right-1 text-gray-400 hover:text-red-400 text-xs font-bold leading-none p-0.5" title="대원 삭제">✕</button>
+          
+          <!-- 상단: 계급 및 성명 -->
+          <div class="label-name text-xs font-black text-white text-center tracking-tight leading-tight">${m.rank} ${m.name}</div>
 
-          <!-- QR 코드 출력 박스 -->
-          <div id="${qrContainerId}" class="p-2 bg-white rounded-xl my-2 shadow-inner inline-block"></div>
+          <!-- 중앙: 고해상도 QR코드 (인쇄 시 1.6cm) -->
+          <div id="${qrContainerId}" class="qr-box p-1 bg-white rounded-lg my-1 shadow-inner flex items-center justify-center"></div>
 
-          <div class="mt-1">
-            <div class="text-base font-black text-white">${m.rank} ${m.name}</div>
-            <div class="text-[9px] text-gray-500 font-mono mt-1">${m.qr_token.substring(0, 16)}...</div>
-          </div>
+          <!-- 하단: 소속 팀명 -->
+          <div class="label-team text-[10px] font-bold text-gray-400 text-center tracking-tight leading-tight">${m.team_name}</div>
         `;
 
         grid.appendChild(card);
 
-        // QR 생성 (QRCode.js)
+        // QR 생성 (QRCode.js) - 140px 해상도로 선명하게 그린 후 CSS로 초소형 축소
         new QRCode(document.getElementById(qrContainerId), {
           text: m.qr_token,
-          width: 120,
-          height: 120,
+          width: 140,
+          height: 140,
           colorDark: "#000000",
           colorLight: "#ffffff",
           correctLevel: QRCode.CorrectLevel.M
