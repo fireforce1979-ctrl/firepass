@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>현장지휘관 실시간 관제 대시보드 (FirePass)</title>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
+
+  <style>
+    @keyframes pulse-danger {
+      0%, 100% { background-color: rgba(220, 38, 38, 0.2); border-color: #dc2626; }
+      50% { background-color: rgba(220, 38, 38, 0.6); border-color: #f87171; }
+    }
+    .animate-danger {
+      animation: pulse-danger 1.3s infinite;
+    }
+
+    /* 20분 초과 시 주황색 깜빡임 애니메이션 */
+    @keyframes pulse-warning {
+      0%, 100% { background-color: rgba(234, 88, 12, 0.2); border-color: #ea580c; }
+      50% { background-color: rgba(249, 115, 22, 0.55); border-color: #fb923c; }
+    }
+    .animate-warning {
+      animation: pulse-warning 1.5s infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-950 text-white min-h-screen flex flex-col font-sans">
+
+  <!-- 1. 지휘관 관제 헤더 -->
+  <header class="bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-30 shadow-md">
+    <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+      <div class="flex items-center gap-3">
+        <div class="p-2 bg-red-600 rounded-xl text-2xl">🚒</div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-black text-xl tracking-tight">1차 통제선 현장 종합 관제상황판</h1>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">
+              ● 실시간(Live) 연동 중
+            </span>
+          </div>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="text-xs px-2 py-0.5 rounded bg-red-950 text-red-300 font-bold border border-red-800">
+              현재 방: <span id="currentSceneName" class="text-white">로딩 중...</span>
+            </span>
+            <button onclick="openSceneModal()" class="text-xs text-yellow-400 hover:underline flex items-center gap-1 font-bold">
+              [🏢 훈련 방 변경 / 새로 만들기]
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="exportToCSV()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-lg border border-gray-700 flex items-center gap-1.5 shadow">
+          <span>📥 엑셀(CSV) 다운로드</span>
+        </button>
+        <button onclick="openSceneModal()" class="px-3 py-2 bg-blue-900 hover:bg-blue-800 text-sm font-bold rounded-lg border border-blue-700 flex items-center gap-1 shadow">
+          <span>🏢 방 선택</span>
+        </button>
+        <button onclick="showConfigPrompt()" class="p-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-lg border border-gray-700" title="API 설정">
+          ⚙️
+        </button>
+        <a id="linkToScanner" href="index.html" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-sm font-bold rounded-lg shadow">
+          📱 스캐너 열기
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 2. 핵심 지표 KPI 카드 -->
+  <div class="max-w-7xl mx-auto w-full p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl flex flex-col justify-between">
+      <span class="text-xs font-bold text-gray-400">현재 통제선 내 진입 인원</span>
+      <div class="text-4xl font-black text-green-400 mt-2"><span id="kpiInsideCount">0</span><span class="text-base text-gray-400 ml-1">명</span></div>
+      <span class="text-[11px] text-gray-500 mt-1">현장 안전 확인 대상</span>
+    </div>
+
+    <!-- 20분 초과 주의 및 30분 초과 위험 통합 카드 -->
+    <div class="bg-gray-900 border border-orange-900/60 p-4 rounded-2xl flex flex-col justify-between">
+      <div class="flex justify-between items-center">
+        <span class="text-xs font-bold text-orange-400">체류 경보 대원</span>
+        <span class="text-[10px] px-1.5 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-800 font-bold">20분 / 30분</span>
+      </div>
+      <div class="flex items-baseline gap-2 mt-2">
+        <div class="text-3xl font-black text-orange-400"><span id="kpiWarningCount">0</span><span class="text-xs text-orange-300 ml-1">명(주의)</span></div>
+        <div class="text-2xl font-black text-red-500">/ <span id="kpiTimeoutCount">0</span><span class="text-xs text-red-400 ml-1">명(위험)</span></div>
+      </div>
+      <span class="text-[11px] text-orange-300 font-medium mt-1">🟠 20분 주황 / 🔴 30분 붉은색</span>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl flex flex-col justify-between">
+      <span class="text-xs font-bold text-gray-400">철수 완료 대원</span>
+      <div class="text-4xl font-black text-blue-400 mt-2"><span id="kpiExitedCount">0</span><span class="text-base text-gray-400 ml-1">명</span></div>
+      <span class="text-[11px] text-gray-500 mt-1">임무 완수 및 대기</span>
+    </div>
+
+    <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl flex flex-col justify-between">
+      <span class="text-xs font-bold text-gray-400">총 투입 누적 인원</span>
+      <div class="text-4xl font-black text-white mt-2"><span id="kpiTotalCount">0</span><span class="text-base text-gray-400 ml-1">명</span></div>
+      <span class="text-[11px] text-gray-500 mt-1">현장 출동 대원 총계</span>
+    </div>
+  </div>
+
+  <!-- 3. 메인 현황판 영역 -->
+  <main class="max-w-7xl mx-auto w-full p-4 flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+    <!-- 좌측: 현재 통제선 내부 진입 대원 현황 (카드 그리드) -->
+    <section class="lg:col-span-2 flex flex-col">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-lg font-black text-white flex items-center gap-2">
+          <span>🟢 현장 진입 대원 모니터링</span>
+          <span id="insideCountBadge" class="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">0명</span>
+        </h2>
+        <span class="text-xs text-gray-400">타이머는 1초마다 자동 갱신됩니다</span>
+      </div>
+
+      <div id="insideMembersGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 overflow-y-auto">
+        <!-- 대원 상태 카드가 동적으로 렌더링됩니다 -->
+      </div>
+    </section>
+
+    <!-- 우측: 최근 출입 이벤트 타임라인 스트림 -->
+    <section class="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col h-[650px]">
+      <div class="flex justify-between items-center mb-3">
+        <h3 class="font-extrabold text-base text-white">📋 실시간 출입 기록 스트림</h3>
+        <span class="text-xs text-gray-500">최근 30건</span>
+      </div>
+
+      <div id="activityStream" class="flex-1 overflow-y-auto space-y-2 pr-1">
+        <!-- 출입 로그 항목 -->
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // config.js 누락 대비 자체 내장 접속 정보
+    const EMBEDDED_SUPABASE_URL = "https://pnrlxmikvglfbipkootb.supabase.co";
+    const EMBEDDED_SUPABASE_KEY = "sb_publishable_wu1okv3-NmPDXcoeGRjalQ_9-fiswGc";
+
+    function getSafeSupabaseClient() {
+      if (typeof getSupabaseClient === 'function') {
+        const c = getSupabaseClient();
+        if (c) return c;
+      }
+      if (typeof supabase !== 'undefined' && supabase.createClient) {
+        return supabase.createClient(EMBEDDED_SUPABASE_URL, EMBEDDED_SUPABASE_KEY);
+      }
+      return null;
+    }
+
+    const supabaseClient = getSafeSupabaseClient();
+    const WARNING_LIMIT_SEC = 20 * 60; // 20분 = 1200초 (주황색 주의 경보)
+    const TIMEOUT_LIMIT_SEC = 30 * 60; // 30분 = 1800초 (붉은색 위험 경보)
+
+    let firefightersMap = {}; // qr_token -> firefighter
+    let activeEntries = {};   // firefighter_id -> { member, enteredAt, logId }
+    let exitedMembers = [];   // 철수한 대원 목록
+    let rawLogs = [];         // 전체 로그 (CSV용)
+
+    let currentScene = { id: DEFAULT_SCENE_ID, title: '기본 훈련 현장' };
+
+    // ==========================================
+    // 1. 대원 마스터 및 출입 데이터 로드
+    // ==========================================
+    async function initDashboard() {
+      if (typeof checkConfigModal === 'function') checkConfigModal();
+      
+      // 현재 선택된 훈련 방 정보 불러오기
+      if (typeof getActiveScene === 'function') {
+        currentScene = getActiveScene();
+      }
+      document.getElementById('currentSceneName').innerText = currentScene.title;
+      
+      // 스캐너 바로가기 링크에 현재 방 파라미터 전달
+      const scannerLink = document.getElementById('linkToScanner');
+      if (scannerLink) {
+        scannerLink.href = `index.html?scene=${currentScene.id}&title=${encodeURIComponent(currentScene.title)}`;
+      }
+
+      if (!supabaseClient) return;
+
+      // 1) 대원 마스터 정보 로드
+      const { data: members } = await supabaseClient.from('firefighters').select('*');
+      if (members) {
+        members.forEach(m => {
+          firefightersMap[m.qr_token] = m;
+          firefightersMap[m.id] = m;
+        });
+      }
+
+      // 2) 현재 방의 출입 로그만 로드 및 상태 복원
+      await fetchAllLogs();
+
+      // 3) 실시간 구독 (Supabase Realtime - 현재 방 이벤트만 수신)
+      supabaseClient
+        .channel(`dashboard-realtime-${currentScene.id}`)
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'entry_exit_logs'
+        }, payload => {
+          if (payload.new && payload.new.scene_id === currentScene.id) {
+            handleIncomingLog(payload.new);
+          }
+        })
+        .subscribe();
+
+      // 4) 1초마다 타이머 렌더링
+      setInterval(renderInsideGrid, 1000);
+    }
+
+    async function fetchAllLogs() {
+      const { data: logs, error } = await supabaseClient
+        .from('entry_exit_logs')
+        .select('*')
+        .eq('scene_id', currentScene.id)
+        .order('tagged_at', { ascending: true });
+
+      if (logs && !error) {
+        rawLogs = logs;
+        processAllLogs(logs);
+      }
+    }
+
+    function processAllLogs(logs) {
+      activeEntries = {};
+      exitedMembers = [];
+
+      logs.forEach(log => {
+        const member = firefightersMap[log.firefighter_id] || firefightersMap[log.qr_token] || {
+          id: log.firefighter_id || log.qr_token,
+          name: '미등록 대원',
+          rank: '대원',
+          team_name: '현장투입팀',
+          service_number: log.qr_token.substring(0, 8)
+        };
+
+        if (log.action_type === 'ENTRY') {
+          activeEntries[member.id] = {
+            member: member,
+            enteredAt: new Date(log.tagged_at),
+            logId: log.id,
+            isManual: log.is_manual
+          };
+        } else if (log.action_type === 'EXIT') {
+          if (activeEntries[member.id]) {
+            delete activeEntries[member.id];
+          }
+          exitedMembers.push({
+            member: member,
+            exitedAt: new Date(log.tagged_at)
+          });
+        }
+      });
+
+      renderKPIs();
+      renderInsideGrid();
+      renderStream();
+    }
+
+    function handleIncomingLog(log) {
+      rawLogs.push(log);
+      const member = firefightersMap[log.firefighter_id] || firefightersMap[log.qr_token] || {
+        id: log.firefighter_id || log.qr_token,
+        name: '미등록 대원',
+        rank: '대원',
+        team_name: '현장투입팀',
+        service_number: log.qr_token.substring(0, 8)
+      };
+
+      if (log.action_type === 'ENTRY') {
+        activeEntries[member.id] = {
+          member: member,
+          enteredAt: new Date(log.tagged_at),
+          logId: log.id,
+          isManual: log.is_manual
+        };
+      } else if (log.action_type === 'EXIT') {
+        if (activeEntries[member.id]) {
+          delete activeEntries[member.id];
+        }
+        exitedMembers.push({
+          member: member,
+          exitedAt: new Date(log.tagged_at)
+        });
+      }
+
+      renderKPIs();
+      renderInsideGrid();
+      renderStream();
+    }
+
+    // ==========================================
+    // 2. 화면 렌더링 루틴 (카드 & 타이머)
+    // ==========================================
+    function renderKPIs() {
+      const insideList = Object.values(activeEntries);
+      const now = new Date();
+      let warningCount = 0;
+      let timeoutCount = 0;
+
+      insideList.forEach(entry => {
+        const elapsedSec = Math.floor((now - entry.enteredAt) / 1000);
+        if (elapsedSec >= TIMEOUT_LIMIT_SEC) {
+          timeoutCount++;
+        } else if (elapsedSec >= WARNING_LIMIT_SEC) {
+          warningCount++;
+        }
+      });
+
+      document.getElementById('kpiInsideCount').innerText = insideList.length;
+      document.getElementById('insideCountBadge').innerText = `${insideList.length}명`;
+      if (document.getElementById('kpiWarningCount')) {
+        document.getElementById('kpiWarningCount').innerText = warningCount;
+      }
+      document.getElementById('kpiTimeoutCount').innerText = timeoutCount;
+      document.getElementById('kpiExitedCount').innerText = exitedMembers.length;
+      document.getElementById('kpiTotalCount').innerText = insideList.length + exitedMembers.length;
+    }
+
+    function renderInsideGrid() {
+      const container = document.getElementById('insideMembersGrid');
+      const entries = Object.values(activeEntries);
+      const now = new Date();
+
+      if (entries.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full p-12 text-center text-gray-500 bg-gray-900 border border-gray-800 rounded-2xl">
+            <div class="text-4xl mb-2">🟢</div>
+            <div class="font-bold text-gray-400">현재 통제선 내 진입한 대원이 없습니다.</div>
+            <div class="text-xs text-gray-600 mt-1">대원이 통제선에 진입하면 실시간으로 카드가 표시됩니다.</div>
+          </div>
+        `;
+        renderKPIs();
+        return;
+      }
+
+      // 체류시간이 긴 순서대로 정렬
+      entries.sort((a, b) => a.enteredAt - b.enteredAt);
+
+      container.innerHTML = entries.map(item => {
+        const elapsedSec = Math.floor((now - item.enteredAt) / 1000);
+        const mins = Math.floor(elapsedSec / 60);
+        const secs = elapsedSec % 60;
+        const timeFormatted = `${mins}분 ${secs < 10 ? '0' : ''}${secs}초`;
+
+        const isTimeout = elapsedSec >= TIMEOUT_LIMIT_SEC;
+        const isWarning = !isTimeout && elapsedSec >= WARNING_LIMIT_SEC; // 20분 초과 시 주의
+
+        let cardClass = "bg-gray-900 border-2 border-gray-800 p-4 rounded-2xl flex flex-col justify-between relative transition";
+        let statusBadge = `<span class="text-xs font-bold text-green-400 bg-green-950 px-2.5 py-1 rounded-full border border-green-800">정상 활동 중</span>`;
+        let timerColor = "text-green-400 font-bold";
+
+        if (isTimeout) {
+          // 30분 이상: 붉은색 점멸 경보
+          cardClass = "bg-red-950/70 border-2 border-red-500 p-4 rounded-2xl flex flex-col justify-between relative animate-danger shadow-xl";
+          statusBadge = `<span class="text-xs font-black text-white bg-red-600 px-2.5 py-1 rounded-full animate-bounce">🚨 30분 한계 초과 (철수)</span>`;
+          timerColor = "text-red-400 font-black";
+        } else if (isWarning) {
+          // 20분 초과: 주황색 점멸 주의
+          cardClass = "bg-orange-950/60 border-2 border-orange-500 p-4 rounded-2xl flex flex-col justify-between relative animate-warning shadow-xl";
+          statusBadge = `<span class="text-xs font-black text-white bg-orange-600 px-2.5 py-1 rounded-full animate-pulse">🟠 20분 경과 (주의)</span>`;
+          timerColor = "text-orange-400 font-black";
+        }
+
+        return `
+          <div class="${cardClass}">
+            <div>
+              <div class="flex justify-between items-start mb-2">
+                <div>
+                  <span class="text-xs font-bold text-red-400">${item.member.team_name}</span>
+                  <div class="text-xl font-black text-white">${item.member.rank} ${item.member.name}</div>
+                  ${item.isManual ? '<div class="text-xs text-orange-400 font-bold mt-0.5">[수동 진입]</div>' : ''}
+                </div>
+                <div>${statusBadge}</div>
+              </div>
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-gray-800 flex justify-between items-end">
+              <div>
+                <div class="text-[11px] text-gray-500">진입 시간: ${item.enteredAt.toLocaleTimeString()}</div>
+                <div class="text-xs text-gray-400 mt-0.5">체류 경과 시간</div>
+              </div>
+              <div class="text-2xl font-mono ${timerColor}">
+                ${timeFormatted}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      renderKPIs();
+    }
+
+    function renderStream() {
+      const container = document.getElementById('activityStream');
+      const recent = [...rawLogs].reverse().slice(0, 30);
+
+      if (recent.length === 0) {
+        container.innerHTML = '<div class="text-center text-gray-500 text-xs py-8">출입 기록이 없습니다.</div>';
+        return;
+      }
+
+      container.innerHTML = recent.map(log => {
+        const isEntry = log.action_type === 'ENTRY';
+        const member = firefightersMap[log.firefighter_id] || firefightersMap[log.qr_token] || {
+          name: '미등록 대원',
+          rank: '대원',
+          team_name: '현장'
+        };
+        const date = new Date(log.tagged_at);
+
+        return `
+          <div class="p-3 bg-gray-800/80 rounded-xl border border-gray-700/60 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded text-xs font-black ${isEntry ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}">
+                ${isEntry ? '진입' : '철수'}
+              </span>
+              <div>
+                <div class="text-sm font-bold text-white">${member.rank} ${member.name}</div>
+                <div class="text-[11px] text-gray-400">${member.team_name} ${log.is_manual ? '• 수동입력' : ''}</div>
+              </div>
+            </div>
+            <div class="text-xs text-gray-400 font-mono">
+              ${date.toLocaleTimeString()}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ==========================================
+    // 3. 엑셀/CSV 내보내기 기능
+    // ==========================================
+    function exportToCSV() {
+      if (rawLogs.length === 0) {
+        alert("내보낼 출입 기록이 없습니다.");
+        return;
+      }
+
+      let csvContent = "\uFEFF일시,구분,소속,계급,성명,수동입력여부,QR토큰\n";
+
+      rawLogs.forEach(log => {
+        const member = firefightersMap[log.firefighter_id] || firefightersMap[log.qr_token] || {
+          name: '미등록',
+          rank: '-',
+          team_name: '-'
+        };
+        const timeStr = new Date(log.tagged_at).toLocaleString();
+        const actionStr = log.action_type === 'ENTRY' ? '진입' : '철수';
+        const manualStr = log.is_manual ? '수동' : 'QR스캔';
+
+        csvContent += `"${timeStr}","${actionStr}","${member.team_name}","${member.rank}","${member.name}","${manualStr}","${log.qr_token}"\n`;
+      });
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      const safeTitle = currentScene.title.replace(/[\\/:*?"<>|]/g, '_');
+      link.setAttribute("download", `소방출입기록_[${safeTitle}]_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    window.addEventListener('DOMContentLoaded', initDashboard);
+  </script>
+</body>
+</html>
