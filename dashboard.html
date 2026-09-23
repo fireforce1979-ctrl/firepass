@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>현장지휘관 실시간 관제 대시보드 (FirePass)</title>
+  <title>재난현장 대원안전 관제상황판 (FirePass)</title>
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -34,74 +34,119 @@
   <header class="bg-gray-900 border-b border-gray-800 p-4 sticky top-0 z-30 shadow-md">
     <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
       <div class="flex items-center gap-3">
-        <div class="p-2 bg-red-600 rounded-xl text-2xl">🚒</div>
+        <img src="fire_emblem.png" alt="대한민국 소방 엠블럼" class="h-12 w-auto object-contain drop-shadow" />
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="font-black text-xl tracking-tight">1차 통제선 현장 종합 관제상황판</h1>
+            <h1 class="font-black text-xl tracking-tight">재난현장 대원안전 관제상황판</h1>
             <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30">
               ● 실시간(Live) 연동 중
             </span>
           </div>
-          <div class="flex items-center gap-2 mt-1">
-            <span class="text-xs px-2 py-0.5 rounded bg-red-950 text-red-300 font-bold border border-red-800">
-              현재 방: <span id="currentSceneName" class="text-white">로딩 중...</span>
-            </span>
-            <button onclick="openSceneModal()" class="text-xs text-yellow-400 hover:underline flex items-center gap-1 font-bold">
-              [🏢 훈련 방 변경 / 새로 만들기]
-            </button>
-          </div>
+          <p class="text-xs text-gray-400 mt-1">1차 통제선 실시간 진출입 및 대원 안전 관리</p>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <button onclick="exportToCSV()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-lg border border-gray-700 flex items-center gap-1.5 shadow">
-          <span>📥 엑셀(CSV) 다운로드</span>
+      <div class="flex flex-wrap items-center gap-2 mt-2 md:mt-0">
+        <!-- 상단 단일 새로만들기/변경 버튼 -->
+        <button onclick="openSceneModal()" 
+                class="px-3.5 py-2 bg-yellow-500 hover:bg-yellow-400 text-black text-sm font-black rounded-xl shadow flex items-center gap-1.5 transition active:scale-95" 
+                title="훈련 방을 새로 만들거나 변경합니다">
+          <span>🔄 새로만들기/변경</span>
+          <span id="currentSceneBadge" class="text-[11px] bg-black/80 text-yellow-300 px-2 py-0.5 rounded-lg font-bold truncate max-w-[130px]">로딩 중...</span>
         </button>
-        <button onclick="openSceneModal()" class="px-3 py-2 bg-blue-900 hover:bg-blue-800 text-sm font-bold rounded-lg border border-blue-700 flex items-center gap-1 shadow">
-          <span>🏢 방 선택</span>
+        <button onclick="exportToCSV()" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-xl border border-gray-700 flex items-center gap-1.5 shadow">
+          <span>📥 엑셀 다운로드</span>
         </button>
-        <button onclick="showConfigPrompt()" class="p-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-lg border border-gray-700" title="API 설정">
+        <button onclick="showConfigPrompt()" class="p-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-xl border border-gray-700" title="API 설정">
           ⚙️
         </button>
-        <a id="linkToScanner" href="index.html" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-sm font-bold rounded-lg shadow">
-          📱 스캐너 열기
+        <a href="admin.html" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-bold rounded-xl border border-gray-700 shadow">
+          🪪 대원/QR 관리
         </a>
       </div>
     </div>
   </header>
 
-  <!-- 2. 핵심 지표 KPI 카드 -->
+  <!-- 2. 핵심 지표 KPI 카드 (2단 화이트 헤더 & 클릭 시 실시간 스트림 필터링) -->
   <div class="max-w-7xl mx-auto w-full p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-    <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl flex flex-col justify-between">
-      <span class="text-xs font-bold text-gray-400">현재 통제선 내 진입 인원</span>
-      <div class="text-4xl font-black text-green-400 mt-2"><span id="kpiInsideCount">0</span><span class="text-base text-gray-400 ml-1">명</span></div>
-      <span class="text-[11px] text-gray-500 mt-1">현장 안전 확인 대상</span>
-    </div>
 
-    <!-- 20분 초과 주의 및 30분 초과 위험 통합 카드 -->
-    <div class="bg-gray-900 border border-orange-900/60 p-4 rounded-2xl flex flex-col justify-between">
-      <div class="flex justify-between items-center">
-        <span class="text-xs font-bold text-orange-400">체류 경보 대원</span>
-        <span class="text-[10px] px-1.5 py-0.5 rounded bg-orange-950 text-orange-300 border border-orange-800 font-bold">20분 / 30분</span>
+    <!-- 1. 1차통제선 진입인원 -->
+    <div id="kpiCardENTRY" onclick="setStreamFilter('ENTRY')" 
+         class="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden flex flex-col justify-between cursor-pointer hover:border-green-400 hover:shadow-xl transition group active:scale-[0.98]">
+      <div class="bg-white px-3.5 py-2.5 border-b border-gray-300 flex items-center justify-between">
+        <span class="text-xs sm:text-sm font-black text-black tracking-tight flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-green-500 inline-block shrink-0"></span>
+          1차통제선 진입인원
+        </span>
+        <span class="text-[10px] font-bold text-gray-500 group-hover:text-black">기록보기 ➔</span>
       </div>
-      <div class="flex items-baseline gap-2 mt-2">
-        <div class="text-3xl font-black text-orange-400"><span id="kpiWarningCount">0</span><span class="text-xs text-orange-300 ml-1">명(주의)</span></div>
-        <div class="text-2xl font-black text-red-500">/ <span id="kpiTimeoutCount">0</span><span class="text-xs text-red-400 ml-1">명(위험)</span></div>
+      <div class="p-3.5 flex flex-col justify-between flex-1">
+        <div class="text-3xl sm:text-4xl font-black text-green-400">
+          <span id="kpiInsideCount">0</span><span class="text-sm text-gray-400 ml-1">명</span>
+        </div>
+        <span class="text-[11px] text-gray-400 mt-1">현장 안전 확인 대상 (클릭 시 진입기록)</span>
       </div>
-      <span class="text-[11px] text-orange-300 font-medium mt-1">🟠 20분 주황 / 🔴 30분 붉은색</span>
     </div>
 
-    <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl flex flex-col justify-between">
-      <span class="text-xs font-bold text-gray-400">철수 완료 대원</span>
-      <div class="text-4xl font-black text-blue-400 mt-2"><span id="kpiExitedCount">0</span><span class="text-base text-gray-400 ml-1">명</span></div>
-      <span class="text-[11px] text-gray-500 mt-1">임무 완수 및 대기</span>
+    <!-- 2. 체류 경보 대원 (20분/30분) -->
+    <div id="kpiCardWARNING" onclick="setStreamFilter('WARNING')" 
+         class="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden flex flex-col justify-between cursor-pointer hover:border-orange-400 hover:shadow-xl transition group active:scale-[0.98]">
+      <div class="bg-white px-3.5 py-2.5 border-b border-gray-300 flex items-center justify-between">
+        <span class="text-xs sm:text-sm font-black text-black tracking-tight flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block shrink-0"></span>
+          체류 경보 대원
+        </span>
+        <span class="text-[10px] font-black text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded border border-orange-300">20분 / 30분</span>
+      </div>
+      <div class="p-3.5 flex flex-col justify-between flex-1">
+        <div class="flex items-baseline gap-1.5">
+          <div class="text-2xl sm:text-3xl font-black text-orange-400">
+            <span id="kpiWarningCount">0</span><span class="text-xs text-orange-300 ml-0.5">명(주의)</span>
+          </div>
+          <div class="text-xl sm:text-2xl font-black text-red-500">
+            / <span id="kpiTimeoutCount">0</span><span class="text-xs text-red-400 ml-0.5">명(위험)</span>
+          </div>
+        </div>
+        <span class="text-[11px] text-orange-300/90 mt-1">🟠 20분 주의 / 🔴 30분 위험 (클릭 시 확인)</span>
+      </div>
     </div>
 
-    <div class="bg-gray-900 border border-gray-800 p-4 rounded-2xl flex flex-col justify-between">
-      <span class="text-xs font-bold text-gray-400">총 투입 누적 인원</span>
-      <div class="text-4xl font-black text-white mt-2"><span id="kpiTotalCount">0</span><span class="text-base text-gray-400 ml-1">명</span></div>
-      <span class="text-[11px] text-gray-500 mt-1">현장 출동 대원 총계</span>
+    <!-- 3. 철수 완료 대원 -->
+    <div id="kpiCardEXIT" onclick="setStreamFilter('EXIT')" 
+         class="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden flex flex-col justify-between cursor-pointer hover:border-blue-400 hover:shadow-xl transition group active:scale-[0.98]">
+      <div class="bg-white px-3.5 py-2.5 border-b border-gray-300 flex items-center justify-between">
+        <span class="text-xs sm:text-sm font-black text-black tracking-tight flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block shrink-0"></span>
+          철수 완료 대원
+        </span>
+        <span class="text-[10px] font-bold text-gray-500 group-hover:text-black">기록보기 ➔</span>
+      </div>
+      <div class="p-3.5 flex flex-col justify-between flex-1">
+        <div class="text-3xl sm:text-4xl font-black text-blue-400">
+          <span id="kpiExitedCount">0</span><span class="text-sm text-gray-400 ml-1">명</span>
+        </div>
+        <span class="text-[11px] text-gray-400 mt-1">임무 완수 및 대기 (클릭 시 철수기록)</span>
+      </div>
     </div>
+
+    <!-- 4. 총 투입 누적 인원 -->
+    <div id="kpiCardALL" onclick="setStreamFilter('ALL')" 
+         class="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden flex flex-col justify-between cursor-pointer hover:border-yellow-400 hover:shadow-xl transition group active:scale-[0.98]">
+      <div class="bg-white px-3.5 py-2.5 border-b border-gray-300 flex items-center justify-between">
+        <span class="text-xs sm:text-sm font-black text-black tracking-tight flex items-center gap-1.5">
+          <span class="w-2.5 h-2.5 rounded-full bg-gray-600 inline-block shrink-0"></span>
+          총 투입 누적 인원
+        </span>
+        <span class="text-[10px] font-bold text-gray-500 group-hover:text-black">전체보기 ➔</span>
+      </div>
+      <div class="p-3.5 flex flex-col justify-between flex-1">
+        <div class="text-3xl sm:text-4xl font-black text-white">
+          <span id="kpiTotalCount">0</span><span class="text-sm text-gray-400 ml-1">명</span>
+        </div>
+        <span class="text-[11px] text-gray-400 mt-1">현장 출동 대원 총계 (클릭 시 전체기록)</span>
+      </div>
+    </div>
+
   </div>
 
   <!-- 3. 메인 현황판 영역 -->
@@ -109,24 +154,49 @@
 
     <!-- 좌측: 현재 통제선 내부 진입 대원 현황 (카드 그리드) -->
     <section class="lg:col-span-2 flex flex-col">
-      <div class="flex justify-between items-center mb-3">
-        <h2 class="text-lg font-black text-white flex items-center gap-2">
-          <span>🟢 현장 진입 대원 모니터링</span>
-          <span id="insideCountBadge" class="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">0명</span>
-        </h2>
-        <span class="text-xs text-gray-400">타이머는 1초마다 자동 갱신됩니다</span>
+      <div class="flex flex-wrap justify-between items-center mb-2 gap-2">
+        <div class="flex items-center gap-2">
+          <h2 class="text-lg font-black text-white flex items-center gap-2">
+            <span>🟢 현장 진입 대원 모니터링</span>
+            <span id="insideCountBadge" class="text-xs px-2 py-0.5 rounded-full bg-green-500/20 text-green-300">0명</span>
+          </h2>
+        </div>
+        <div class="text-xs text-gray-400 flex items-center gap-1.5">
+          <span>⏱️ 1초 타이머</span>
+          <span class="text-gray-600">|</span>
+          <span class="text-amber-400 font-bold">✍️ 진입장소 수기 수정</span>
+        </div>
       </div>
 
-      <div id="insideMembersGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1 overflow-y-auto">
+      <!-- 대원별 상세 진출입 기록 패널 (우측 스트림 인원 클릭 시 표시) -->
+      <div id="selectedMemberHistoryPanel" class="hidden mb-3 p-4 bg-gray-900 border-2 border-amber-500 rounded-2xl shadow-2xl transition-all">
+        <!-- JS로 동적 렌더링 -->
+      </div>
+
+      <!-- 방면별 퀵 필터 탭 -->
+      <div id="sectorFilterTabs" class="flex flex-wrap gap-1.5 mb-2.5 p-1.5 bg-gray-900/90 rounded-xl border border-gray-800">
+        <!-- JS로 동적 생성 -->
+      </div>
+
+      <div id="insideMembersGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 content-start auto-rows-max flex-1 overflow-y-auto pr-1" style="align-content: flex-start;">
         <!-- 대원 상태 카드가 동적으로 렌더링됩니다 -->
       </div>
     </section>
 
     <!-- 우측: 최근 출입 이벤트 타임라인 스트림 -->
     <section class="bg-gray-900 border border-gray-800 rounded-2xl p-4 flex flex-col h-[650px]">
-      <div class="flex justify-between items-center mb-3">
-        <h3 class="font-extrabold text-base text-white">📋 실시간 출입 기록 스트림</h3>
-        <span class="text-xs text-gray-500">최근 30건</span>
+      <div class="flex flex-wrap justify-between items-center mb-3 gap-2">
+        <div class="flex items-center gap-2 min-w-0">
+          <h3 class="font-extrabold text-base text-white truncate">📋 실시간 출입 기록 스트림</h3>
+          <span id="streamFilterBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-300 font-bold border border-gray-700 shrink-0">전체</span>
+        </div>
+        <!-- 스트림 퀵 필터 탭 -->
+        <div class="flex items-center gap-1 text-xs shrink-0">
+          <button onclick="setStreamFilter('ALL')" id="streamBtnALL" class="px-2 py-1 rounded bg-yellow-500 text-black font-black shadow transition">전체</button>
+          <button onclick="setStreamFilter('ENTRY')" id="streamBtnENTRY" class="px-2 py-1 rounded bg-gray-800 hover:bg-green-700 text-gray-300 font-bold transition">진입</button>
+          <button onclick="setStreamFilter('WARNING')" id="streamBtnWARNING" class="px-2 py-1 rounded bg-gray-800 hover:bg-orange-700 text-gray-300 font-bold transition">경보</button>
+          <button onclick="setStreamFilter('EXIT')" id="streamBtnEXIT" class="px-2 py-1 rounded bg-gray-800 hover:bg-red-700 text-gray-300 font-bold transition">철수</button>
+        </div>
       </div>
 
       <div id="activityStream" class="flex-1 overflow-y-auto space-y-2 pr-1">
@@ -156,9 +226,13 @@
     const TIMEOUT_LIMIT_SEC = 30 * 60; // 30분 = 1800초 (붉은색 위험 경보)
 
     let firefightersMap = {}; // qr_token -> firefighter
-    let activeEntries = {};   // firefighter_id -> { member, enteredAt, logId }
+    let activeEntries = {};   // firefighter_id -> { member, enteredAt, logId, isManual, sector }
     let exitedMembers = [];   // 철수한 대원 목록
     let rawLogs = [];         // 전체 로그 (CSV용)
+    let memberSectors = {};   // firefighter_id -> sector name string
+    let currentSectorFilter = 'ALL'; // 방면 필터 ('ALL', '1방면', '2방면', '3방면', '4방면', '내부', '미지정')
+    let selectedMemberHistoryId = null; // 특정 대원 진출입 이력 선택 보기
+    let realtimeChannel = null;
 
     let currentScene = { id: DEFAULT_SCENE_ID, title: '기본 훈련 현장' };
 
@@ -172,7 +246,18 @@
       if (typeof getActiveScene === 'function') {
         currentScene = getActiveScene();
       }
-      document.getElementById('currentSceneName').innerText = currentScene.title;
+      const elSceneName = document.getElementById('currentSceneName');
+      if (elSceneName) elSceneName.innerText = currentScene.title;
+      const elSceneBadge = document.getElementById('currentSceneBadge');
+      if (elSceneBadge) elSceneBadge.innerText = currentScene.title;
+
+      // 현재 방에 저장된 대원별 활동 방면(구역) 캐시 로드
+      try {
+        const saved = localStorage.getItem('FP_SECTORS_' + currentScene.id);
+        memberSectors = saved ? JSON.parse(saved) : {};
+      } catch (e) {
+        memberSectors = {};
+      }
       
       // 스캐너 바로가기 링크에 현재 방 파라미터 전달
       const scannerLink = document.getElementById('linkToScanner');
@@ -194,16 +279,28 @@
       // 2) 현재 방의 출입 로그만 로드 및 상태 복원
       await fetchAllLogs();
 
-      // 3) 실시간 구독 (Supabase Realtime - 현재 방 이벤트만 수신)
-      supabaseClient
+      // 3) 실시간 구독 (Supabase Realtime - DB변경 및 방면 브로드캐스트)
+      realtimeChannel = supabaseClient
         .channel(`dashboard-realtime-${currentScene.id}`)
         .on('postgres_changes', {
-          event: 'INSERT',
+          event: '*', // INSERT, UPDATE, DELETE 전체 감지
           schema: 'public',
           table: 'entry_exit_logs'
-        }, payload => {
-          if (payload.new && payload.new.scene_id === currentScene.id) {
-            handleIncomingLog(payload.new);
+        }, async payload => {
+          console.log('실시간 변경 감지:', payload.eventType);
+          await fetchAllLogs();
+        })
+        .on('broadcast', { event: 'sector_update' }, payload => {
+          if (payload && payload.payload && payload.payload.memberId) {
+            const { memberId, sector } = payload.payload;
+            memberSectors[memberId] = sector;
+            try {
+              localStorage.setItem('FP_SECTORS_' + currentScene.id, JSON.stringify(memberSectors));
+            } catch (e) {}
+            if (activeEntries[memberId]) {
+              activeEntries[memberId].sector = sector;
+            }
+            renderInsideGrid();
           }
         })
         .subscribe();
@@ -239,11 +336,21 @@
         };
 
         if (log.action_type === 'ENTRY') {
+          // 사용자가 수기로 수정한 방면이 있으면 최우선 유지, 없으면 DB location 참조
+          let assignedSector = '미지정';
+          if (memberSectors[member.id] && memberSectors[member.id] !== '미지정') {
+            assignedSector = memberSectors[member.id];
+          } else if (log.location && log.location !== '미지정') {
+            assignedSector = log.location;
+            memberSectors[member.id] = log.location;
+          }
+
           activeEntries[member.id] = {
             member: member,
             enteredAt: new Date(log.tagged_at),
             logId: log.id,
-            isManual: log.is_manual
+            isManual: log.is_manual,
+            sector: assignedSector
           };
         } else if (log.action_type === 'EXIT') {
           if (activeEntries[member.id]) {
@@ -272,11 +379,19 @@
       };
 
       if (log.action_type === 'ENTRY') {
+        let assignedSector = '미지정';
+        if (memberSectors[member.id] && memberSectors[member.id] !== '미지정') {
+          assignedSector = memberSectors[member.id];
+        } else if (log.location && log.location !== '미지정') {
+          assignedSector = log.location;
+        }
+
         activeEntries[member.id] = {
           member: member,
           enteredAt: new Date(log.tagged_at),
           logId: log.id,
-          isManual: log.is_manual
+          isManual: log.is_manual,
+          sector: assignedSector
         };
       } else if (log.action_type === 'EXIT') {
         if (activeEntries[member.id]) {
@@ -294,7 +409,7 @@
     }
 
     // ==========================================
-    // 2. 화면 렌더링 루틴 (카드 & 타이머)
+    // 2. 화면 렌더링 루틴 (카드 & 타이머 & 방면 필터)
     // ==========================================
     function renderKPIs() {
       const insideList = Object.values(activeEntries);
@@ -321,10 +436,63 @@
       document.getElementById('kpiTotalCount').innerText = insideList.length + exitedMembers.length;
     }
 
+    function renderSectorFilterTabs(allEntries) {
+      const container = document.getElementById('sectorFilterTabs');
+      if (!container) return;
+
+      const filterDefs = [
+        { id: 'ALL', label: '전체' },
+        { id: '1방면', label: '1방면(전면)' },
+        { id: '2방면', label: '2방면(우측)' },
+        { id: '3방면', label: '3방면(후면)' },
+        { id: '4방면', label: '4방면(좌측)' },
+        { id: '내부', label: '내부진입' },
+        { id: '지하', label: '지하층' },
+        { id: '옥상', label: '옥상층' },
+        { id: '미지정', label: '미지정' }
+      ];
+
+      const counts = { ALL: allEntries.length, '1방면': 0, '2방면': 0, '3방면': 0, '4방면': 0, '내부': 0, '지하': 0, '옥상': 0, '미지정': 0 };
+      allEntries.forEach(e => {
+        const sec = e.sector || '미지정';
+        if (sec.includes('1방면')) counts['1방면']++;
+        else if (sec.includes('2방면')) counts['2방면']++;
+        else if (sec.includes('3방면')) counts['3방면']++;
+        else if (sec.includes('4방면')) counts['4방면']++;
+        else if (sec.includes('내부')) counts['내부']++;
+        else if (sec.includes('지하')) counts['지하']++;
+        else if (sec.includes('옥상')) counts['옥상']++;
+        else counts['미지정']++;
+      });
+
+      container.innerHTML = filterDefs.map(f => {
+        const isActive = currentSectorFilter === f.id;
+        const count = counts[f.id] || 0;
+        return `
+          <button onclick="setSectorFilter('${f.id}')" 
+                  class="px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
+                    isActive 
+                      ? 'bg-amber-500 text-black shadow font-black' 
+                      : 'bg-gray-800 text-gray-300 hover:bg-gray-700 hover:text-white border border-gray-700'
+                  }">
+            <span>${f.label}</span>
+            <span class="px-1.5 py-0.2 rounded-full text-[10px] ${isActive ? 'bg-black text-amber-300' : 'bg-gray-900 text-gray-400'}">${count}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function setSectorFilter(filterId) {
+      currentSectorFilter = filterId;
+      renderInsideGrid();
+    }
+
     function renderInsideGrid() {
       const container = document.getElementById('insideMembersGrid');
       const entries = Object.values(activeEntries);
       const now = new Date();
+
+      renderSectorFilterTabs(entries);
 
       if (entries.length === 0) {
         container.innerHTML = `
@@ -338,10 +506,32 @@
         return;
       }
 
-      // 체류시간이 긴 순서대로 정렬
-      entries.sort((a, b) => a.enteredAt - b.enteredAt);
+      // 방면 필터링 적용
+      let filteredEntries = entries;
+      if (currentSectorFilter !== 'ALL') {
+        if (currentSectorFilter === '미지정') {
+          filteredEntries = entries.filter(e => !e.sector || e.sector === '미지정' || (!e.sector.includes('1방면') && !e.sector.includes('2방면') && !e.sector.includes('3방면') && !e.sector.includes('4방면') && !e.sector.includes('내부') && !e.sector.includes('지하') && !e.sector.includes('옥상')));
+        } else {
+          filteredEntries = entries.filter(e => e.sector && e.sector.includes(currentSectorFilter));
+        }
+      }
 
-      container.innerHTML = entries.map(item => {
+      if (filteredEntries.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full p-8 text-center text-gray-500 bg-gray-900 border border-gray-800 rounded-2xl">
+            <div class="text-3xl mb-2">🔍</div>
+            <div class="font-bold text-gray-400">[${currentSectorFilter}]에 지정된 활동 대원이 없습니다.</div>
+            <button onclick="setSectorFilter('ALL')" class="mt-3 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs font-bold text-gray-200 rounded-lg border border-gray-700">전체 보기</button>
+          </div>
+        `;
+        renderKPIs();
+        return;
+      }
+
+      // 체류시간이 긴 순서대로 정렬
+      filteredEntries.sort((a, b) => a.enteredAt - b.enteredAt);
+
+      container.innerHTML = filteredEntries.map(item => {
         const elapsedSec = Math.floor((now - item.enteredAt) / 1000);
         const mins = Math.floor(elapsedSec / 60);
         const secs = elapsedSec % 60;
@@ -349,43 +539,66 @@
 
         const isTimeout = elapsedSec >= TIMEOUT_LIMIT_SEC;
         const isWarning = !isTimeout && elapsedSec >= WARNING_LIMIT_SEC; // 20분 초과 시 주의
+        const isSelected = selectedMemberHistoryId === item.member.id;
 
-        let cardClass = "bg-gray-900 border-2 border-gray-800 p-4 rounded-2xl flex flex-col justify-between relative transition";
-        let statusBadge = `<span class="text-xs font-bold text-green-400 bg-green-950 px-2.5 py-1 rounded-full border border-green-800">정상 활동 중</span>`;
-        let timerColor = "text-green-400 font-bold";
+        // 초슬림 2단 컴팩트 레이아웃 (약 70px 높이 & 고가독성)
+        let cardClass = "bg-gray-900/95 border border-gray-800 hover:border-gray-600 py-2 px-3 rounded-xl transition shadow-sm flex flex-col justify-between min-h-[68px]";
+        let statusBadge = `<span class="text-[10px] font-black text-green-400 bg-green-950/80 px-1.5 py-0.5 rounded border border-green-800 shrink-0">정상</span>`;
+        let timerColor = "text-green-400";
 
         if (isTimeout) {
           // 30분 이상: 붉은색 점멸 경보
-          cardClass = "bg-red-950/70 border-2 border-red-500 p-4 rounded-2xl flex flex-col justify-between relative animate-danger shadow-xl";
-          statusBadge = `<span class="text-xs font-black text-white bg-red-600 px-2.5 py-1 rounded-full animate-bounce">🚨 30분 한계 초과 (철수)</span>`;
-          timerColor = "text-red-400 font-black";
+          cardClass = "bg-red-950/80 border-2 border-red-500 py-2 px-3 rounded-xl transition animate-danger shadow-xl flex flex-col justify-between min-h-[68px]";
+          statusBadge = `<span class="text-[10px] font-black text-white bg-red-600 px-1.5 py-0.5 rounded animate-bounce shrink-0">🚨 30분철수</span>`;
+          timerColor = "text-red-400";
         } else if (isWarning) {
           // 20분 초과: 주황색 점멸 주의
-          cardClass = "bg-orange-950/60 border-2 border-orange-500 p-4 rounded-2xl flex flex-col justify-between relative animate-warning shadow-xl";
-          statusBadge = `<span class="text-xs font-black text-white bg-orange-600 px-2.5 py-1 rounded-full animate-pulse">🟠 20분 경과 (주의)</span>`;
-          timerColor = "text-orange-400 font-black";
+          cardClass = "bg-orange-950/70 border-2 border-orange-500 py-2 px-3 rounded-xl transition animate-warning shadow-xl flex flex-col justify-between min-h-[68px]";
+          statusBadge = `<span class="text-[10px] font-black text-white bg-orange-600 px-1.5 py-0.5 rounded animate-pulse shrink-0">🟠 20분주의</span>`;
+          timerColor = "text-orange-400";
         }
 
+        // 선택된 대원일 경우 금색 하이라이트 테두리 적용
+        if (isSelected) {
+          cardClass += " ring-4 ring-amber-400 border-amber-400 bg-amber-950/50 shadow-2xl";
+        }
+
+        const currentSector = item.sector || '미지정';
+        const hasSector = currentSector !== '미지정';
+
         return `
-          <div class="${cardClass}">
-            <div>
-              <div class="flex justify-between items-start mb-2">
-                <div>
-                  <span class="text-xs font-bold text-red-400">${item.member.team_name}</span>
-                  <div class="text-xl font-black text-white">${item.member.rank} ${item.member.name}</div>
-                  ${item.isManual ? '<div class="text-xs text-orange-400 font-bold mt-0.5">[수동 진입]</div>' : ''}
+          <div class="${cardClass}" id="memberCard_${item.member.id}" style="min-height: 70px; max-height: 74px; padding: 8px 12px; box-sizing: border-box;">
+            <!-- 1단 (헤더행): 소속/성명 & 실시간 체류 타이머 & 상태 배지 -->
+            <div class="flex items-center justify-between gap-2 leading-none" style="margin-bottom: 2px;">
+              <div onclick="showMemberHistory('${item.member.id}')" class="flex items-center gap-1.5 min-w-0 cursor-pointer group" title="클릭하여 대원 상세 진출입 이력 보기">
+                <span class="px-1.5 py-0.5 rounded text-[10px] font-black bg-red-950 text-red-300 border border-red-800/80 shrink-0">${item.member.team_name}</span>
+                <span class="text-sm sm:text-base font-black text-white group-hover:text-amber-300 transition truncate tracking-tight">${item.member.rank} ${item.member.name}</span>
+                ${item.isManual ? '<span class="text-[10px] text-orange-400 font-bold shrink-0">[수동]</span>' : ''}
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <div class="text-base sm:text-lg font-black font-mono tracking-tight ${timerColor}">
+                  ${timeFormatted}
                 </div>
-                <div>${statusBadge}</div>
+                ${statusBadge}
               </div>
             </div>
 
-            <div class="mt-4 pt-3 border-t border-gray-800 flex justify-between items-end">
-              <div>
-                <div class="text-[11px] text-gray-500">진입 시간: ${item.enteredAt.toLocaleTimeString()}</div>
-                <div class="text-xs text-gray-400 mt-0.5">체류 경과 시간</div>
+            <!-- 2단 (정보행): 진입장소 (수기수정 원터치) & 진입 시각 -->
+            <div class="pt-1.5 border-t border-gray-800/80 flex items-center justify-between gap-2 leading-none" style="margin-top: 4px;">
+              <div onclick="openSectorModal('${item.member.id}', '${item.member.name}', '${item.member.rank}', '${item.member.team_name}')" 
+                   class="flex items-center gap-1 min-w-0 cursor-pointer group hover:opacity-90 transition" 
+                   title="클릭하여 진입장소 수기 수정">
+                <span class="text-xs shrink-0">📍</span>
+                <span class="text-xs font-bold ${hasSector ? 'text-amber-300 bg-amber-950/80 px-2 py-0.5 rounded border border-amber-700/80' : 'text-gray-400 bg-gray-800/80 px-2 py-0.5 rounded border border-gray-700'} truncate group-hover:border-amber-400 transition" 
+                      title="${currentSector}">
+                  ${currentSector}
+                </span>
+                <button type="button" class="px-1.5 py-0.5 rounded bg-gray-800 hover:bg-amber-500 text-gray-300 hover:text-black text-[10px] font-bold border border-gray-700 transition shrink-0">
+                  ✍️수정
+                </button>
               </div>
-              <div class="text-2xl font-mono ${timerColor}">
-                ${timeFormatted}
+              <div class="text-[11px] text-gray-400 font-mono shrink-0">
+                진입 ${item.enteredAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
           </div>
@@ -393,43 +606,753 @@
       }).join('');
 
       renderKPIs();
+      if (selectedMemberHistoryId) {
+        renderSelectedMemberHistory();
+      }
+    }
+
+    let currentStreamFilter = 'ALL'; // 'ALL', 'ENTRY', 'WARNING', 'EXIT'
+
+    function setStreamFilter(filterType) {
+      currentStreamFilter = filterType;
+
+      // 4개 KPI 카드 테두리 하이라이트 갱신
+      const cards = {
+        'ENTRY': document.getElementById('kpiCardENTRY'),
+        'WARNING': document.getElementById('kpiCardWARNING'),
+        'EXIT': document.getElementById('kpiCardEXIT'),
+        'ALL': document.getElementById('kpiCardALL')
+      };
+
+      Object.keys(cards).forEach(key => {
+        const el = cards[key];
+        if (el) {
+          el.classList.remove('ring-4', 'ring-green-400', 'ring-orange-400', 'ring-blue-400', 'ring-yellow-400');
+        }
+      });
+
+      if (filterType === 'ENTRY' && cards.ENTRY) cards.ENTRY.classList.add('ring-4', 'ring-green-400');
+      else if (filterType === 'WARNING' && cards.WARNING) cards.WARNING.classList.add('ring-4', 'ring-orange-400');
+      else if (filterType === 'EXIT' && cards.EXIT) cards.EXIT.classList.add('ring-4', 'ring-blue-400');
+      else if (filterType === 'ALL' && cards.ALL) cards.ALL.classList.add('ring-4', 'ring-yellow-400');
+
+      // 스트림 필터 배지 텍스트 갱신
+      const badge = document.getElementById('streamFilterBadge');
+      if (badge) {
+        if (filterType === 'ENTRY') {
+          badge.className = "text-[11px] px-2 py-0.5 rounded-full bg-green-950 text-green-300 font-bold border border-green-700 shrink-0";
+          badge.innerText = "진입 기록만";
+        } else if (filterType === 'WARNING') {
+          badge.className = "text-[11px] px-2 py-0.5 rounded-full bg-orange-950 text-orange-300 font-bold border border-orange-700 shrink-0";
+          badge.innerText = "경보 대원만";
+        } else if (filterType === 'EXIT') {
+          badge.className = "text-[11px] px-2 py-0.5 rounded-full bg-blue-950 text-blue-300 font-bold border border-blue-700 shrink-0";
+          badge.innerText = "철수 기록만";
+        } else {
+          badge.className = "text-[11px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-300 font-bold border border-gray-700 shrink-0";
+          badge.innerText = "전체 기록";
+        }
+      }
+
+      // 우측 스트림 상단 버튼 스타일 갱신
+      ['ALL', 'ENTRY', 'WARNING', 'EXIT'].forEach(type => {
+        const btn = document.getElementById('streamBtn' + type);
+        if (btn) {
+          if (type === filterType) {
+            btn.className = "px-2 py-1 rounded bg-yellow-500 text-black font-black shadow transition";
+          } else {
+            btn.className = "px-2 py-1 rounded bg-gray-800 hover:bg-gray-700 text-gray-300 font-bold transition";
+          }
+        }
+      });
+
+      renderStream();
     }
 
     function renderStream() {
       const container = document.getElementById('activityStream');
-      const recent = [...rawLogs].reverse().slice(0, 30);
+      if (!container) return;
+
+      let logsToShow = [...rawLogs].reverse();
+
+      if (currentStreamFilter === 'ENTRY') {
+        logsToShow = logsToShow.filter(log => log.action_type === 'ENTRY');
+      } else if (currentStreamFilter === 'EXIT') {
+        logsToShow = logsToShow.filter(log => log.action_type === 'EXIT');
+      } else if (currentStreamFilter === 'WARNING') {
+        const now = new Date();
+        const warningMemberIds = new Set(
+          Object.values(activeEntries)
+            .filter(e => Math.floor((now - e.enteredAt) / 1000) >= WARNING_LIMIT_SEC)
+            .map(e => e.member.id)
+        );
+        logsToShow = logsToShow.filter(log => {
+          const mId = log.firefighter_id || log.qr_token;
+          return warningMemberIds.has(mId);
+        });
+      }
+
+      const recent = logsToShow.slice(0, 40);
 
       if (recent.length === 0) {
-        container.innerHTML = '<div class="text-center text-gray-500 text-xs py-8">출입 기록이 없습니다.</div>';
+        let emptyMsg = '출입 기록이 없습니다.';
+        if (currentStreamFilter === 'ENTRY') emptyMsg = '진입 기록이 없습니다.';
+        else if (currentStreamFilter === 'EXIT') emptyMsg = '철수 완료 기록이 없습니다.';
+        else if (currentStreamFilter === 'WARNING') emptyMsg = '현재 20분/30분 체류 경보 대상 대원의 기록이 없습니다.';
+
+        container.innerHTML = `
+          <div class="text-center text-gray-500 text-xs py-14 flex flex-col items-center justify-center">
+            <div class="text-2xl mb-2">📋</div>
+            <div class="font-bold text-gray-400 mb-1">${emptyMsg}</div>
+            ${currentStreamFilter !== 'ALL' ? '<button onclick="setStreamFilter(\'ALL\')" class="mt-3 px-3 py-1 bg-gray-800 hover:bg-gray-700 text-xs text-yellow-400 rounded-lg border border-gray-700 font-bold">전체 기록 보기</button>' : ''}
+          </div>
+        `;
         return;
       }
 
       container.innerHTML = recent.map(log => {
         const isEntry = log.action_type === 'ENTRY';
         const member = firefightersMap[log.firefighter_id] || firefightersMap[log.qr_token] || {
+          id: log.firefighter_id || log.qr_token,
           name: '미등록 대원',
           rank: '대원',
           team_name: '현장'
         };
+        const memberId = member.id || log.firefighter_id || log.qr_token;
         const date = new Date(log.tagged_at);
+        const loc = log.location || memberSectors[member.id];
+        const isSelected = selectedMemberHistoryId === memberId;
 
         return `
-          <div class="p-3 bg-gray-800/80 rounded-xl border border-gray-700/60 flex justify-between items-center">
-            <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded text-xs font-black ${isEntry ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}">
+          <div onclick="showMemberHistory('${memberId}')" 
+               class="p-2.5 rounded-xl border transition cursor-pointer group flex justify-between items-center ${
+                 isSelected 
+                   ? 'bg-amber-950/70 border-amber-400 ring-2 ring-amber-400/60 shadow-lg' 
+                   : 'bg-gray-800/80 border-gray-700/60 hover:bg-gray-750 hover:border-amber-400/80'
+               }" 
+               title="클릭 시 좌측 대원모니터링에 [${member.name}] 대원의 전체 진출입 이력이 표시됩니다.">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="px-2 py-0.5 rounded text-xs font-black shrink-0 ${isEntry ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}">
                 ${isEntry ? '진입' : '철수'}
               </span>
-              <div>
-                <div class="text-sm font-bold text-white">${member.rank} ${member.name}</div>
-                <div class="text-[11px] text-gray-400">${member.team_name} ${log.is_manual ? '• 수동입력' : ''}</div>
+              <div class="min-w-0">
+                <div class="text-sm font-bold text-white truncate flex items-center gap-1.5">
+                  <span>${member.rank} ${member.name}</span>
+                  <span class="text-[10px] text-amber-300 font-bold opacity-80 group-hover:opacity-100 transition shrink-0">🔍 이력보기</span>
+                </div>
+                <div class="text-[11px] text-gray-400 flex items-center gap-1.5 truncate">
+                  <span>${member.team_name}</span>
+                  ${loc && loc !== '미지정' ? `<span class="text-amber-300 font-bold">• 📍${loc}</span>` : ''}
+                  ${log.is_manual ? '<span class="text-orange-400 font-bold">• 수동</span>' : ''}
+                </div>
               </div>
             </div>
-            <div class="text-xs text-gray-400 font-mono">
-              ${date.toLocaleTimeString()}
+            <div class="flex items-center gap-2 shrink-0 ml-2">
+              <span class="text-xs text-gray-400 font-mono">${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+              <button onclick="event.stopPropagation(); openEditLogModal('${log.id}')" 
+                      class="px-2 py-1 bg-gray-700 hover:bg-yellow-500 text-gray-300 hover:text-black font-bold text-xs rounded-lg transition" 
+                      title="출입 기록 수정 / 삭제">
+                ✏️ 수정
+              </button>
             </div>
           </div>
         `;
       }).join('');
+    }
+
+    // ==========================================
+    // 3-1. 대원별 상세 진출입 기록 모니터링 연동
+    // ==========================================
+    function showMemberHistory(memberId) {
+      if (!memberId) return;
+      selectedMemberHistoryId = memberId;
+
+      renderSelectedMemberHistory();
+      renderStream();
+      renderInsideGrid();
+
+      const panel = document.getElementById('selectedMemberHistoryPanel');
+      if (panel) {
+        panel.classList.remove('hidden');
+        panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function closeMemberHistory() {
+      selectedMemberHistoryId = null;
+      const panel = document.getElementById('selectedMemberHistoryPanel');
+      if (panel) {
+        panel.classList.add('hidden');
+        panel.innerHTML = '';
+      }
+      renderStream();
+      renderInsideGrid();
+    }
+
+    function renderSelectedMemberHistory() {
+      const panel = document.getElementById('selectedMemberHistoryPanel');
+      if (!panel || !selectedMemberHistoryId) return;
+
+      const member = firefightersMap[selectedMemberHistoryId] 
+        || (activeEntries[selectedMemberHistoryId] ? activeEntries[selectedMemberHistoryId].member : null)
+        || {
+          id: selectedMemberHistoryId,
+          name: '미등록 대원',
+          rank: '대원',
+          team_name: '현장'
+        };
+
+      // 해당 대원의 모든 출입 기록 (시간순 정렬)
+      const mLogs = rawLogs.filter(l => (l.firefighter_id === selectedMemberHistoryId || l.qr_token === selectedMemberHistoryId));
+      mLogs.sort((a, b) => new Date(a.tagged_at) - new Date(b.tagged_at));
+
+      // 세션별 체류 시간 및 누적 시간 계산
+      let entryCount = 0;
+      let exitCount = 0;
+      let totalStaySec = 0;
+      let currentEntryTime = null;
+      const logDurations = {}; // logId -> duration in sec
+
+      mLogs.forEach(log => {
+        if (log.action_type === 'ENTRY') {
+          entryCount++;
+          currentEntryTime = new Date(log.tagged_at);
+        } else if (log.action_type === 'EXIT') {
+          exitCount++;
+          if (currentEntryTime) {
+            const dur = Math.max(0, Math.floor((new Date(log.tagged_at) - currentEntryTime) / 1000));
+            logDurations[log.id] = dur;
+            totalStaySec += dur;
+            currentEntryTime = null;
+          }
+        }
+      });
+
+      const isInside = !!activeEntries[selectedMemberHistoryId];
+      const now = new Date();
+      let currentSessionSec = 0;
+      if (isInside && activeEntries[selectedMemberHistoryId]) {
+        currentSessionSec = Math.floor((now - activeEntries[selectedMemberHistoryId].enteredAt) / 1000);
+        totalStaySec += currentSessionSec;
+      }
+
+      const totalMins = Math.floor(totalStaySec / 60);
+      const totalSecs = totalStaySec % 60;
+      const currentSector = memberSectors[member.id] || (activeEntries[member.id] ? activeEntries[member.id].sector : '미지정');
+
+      // 현재 활동 상태 배지
+      let statusBadgeHtml = '';
+      if (isInside) {
+        const isTimeout = currentSessionSec >= TIMEOUT_LIMIT_SEC;
+        const isWarning = !isTimeout && currentSessionSec >= WARNING_LIMIT_SEC;
+        const curMins = Math.floor(currentSessionSec / 60);
+        const curSecs = currentSessionSec % 60;
+        const timeStr = `${curMins}분 ${curSecs < 10 ? '0' : ''}${curSecs}초`;
+
+        if (isTimeout) {
+          statusBadgeHtml = `<span class="px-2.5 py-1 rounded-lg text-xs font-black bg-red-600 text-white animate-pulse">🚨 30분 철수 경보 (현재 체류: ${timeStr})</span>`;
+        } else if (isWarning) {
+          statusBadgeHtml = `<span class="px-2.5 py-1 rounded-lg text-xs font-black bg-orange-600 text-white animate-pulse">🟠 20분 주의 (현재 체류: ${timeStr})</span>`;
+        } else {
+          statusBadgeHtml = `<span class="px-2.5 py-1 rounded-lg text-xs font-black bg-green-600 text-white">🟢 현장 활동 중 (현재 체류: ${timeStr})</span>`;
+        }
+      } else {
+        statusBadgeHtml = `<span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-800 text-gray-300 border border-gray-700">⚪ 철수 완료 (대기/복귀)</span>`;
+      }
+
+      // 최신 기록이 위로 오도록 역순 복사
+      const reverseLogs = [...mLogs].reverse();
+
+      panel.className = "mb-3 p-4 bg-gray-900 border-2 border-amber-500 rounded-2xl shadow-2xl transition-all";
+      panel.innerHTML = `
+        <!-- 상단 헤더: 대원 식별 & 현재 상태 & 닫기 버튼 -->
+        <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-gray-800">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">🧑‍🚒</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-xs font-black bg-red-950 text-red-400 border border-red-800">${member.team_name}</span>
+                <span class="text-lg font-black text-white">${member.rank} ${member.name}</span>
+                <span class="text-xs text-amber-300 font-bold bg-amber-950/80 px-2 py-0.5 rounded border border-amber-800/80">진출입 상세 이력</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            ${statusBadgeHtml}
+            <button onclick="closeMemberHistory()" 
+                    class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-200 hover:text-white rounded-lg text-xs font-bold border border-gray-600 transition flex items-center gap-1 shadow">
+              <span>✕ 닫기 (전체 대원 보기)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 요약 정보 바 -->
+        <div class="grid grid-cols-3 gap-2 my-3 text-center">
+          <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800">
+            <div class="text-[11px] text-gray-400 font-bold mb-0.5">⏱️ 총 현장 누적 체류</div>
+            <div class="text-base sm:text-lg font-black text-amber-400 font-mono">${totalMins}분 ${totalSecs < 10 ? '0' : ''}${totalSecs}초</div>
+          </div>
+          <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800">
+            <div class="text-[11px] text-gray-400 font-bold mb-0.5">🔄 총 출입 횟수</div>
+            <div class="text-base sm:text-lg font-black text-white font-mono">진입 ${entryCount}회 / 철수 ${exitCount}회</div>
+          </div>
+          <div class="bg-gray-950 p-2.5 rounded-xl border border-gray-800 flex flex-col justify-center items-center">
+            <div class="text-[11px] text-gray-400 font-bold mb-0.5">📍 현재/최근 활동구역</div>
+            <div class="flex items-center gap-1">
+              <span class="text-xs sm:text-sm font-black text-amber-300 truncate max-w-[120px]">${currentSector}</span>
+              ${isInside ? `
+                <button onclick="openSectorModal('${member.id}', '${member.name}', '${member.rank}', '${member.team_name}')" 
+                        class="px-1.5 py-0.5 bg-gray-800 hover:bg-amber-500 text-gray-300 hover:text-black rounded text-[10px] font-bold border border-gray-700 transition">
+                  ✍️변경
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        </div>
+
+        <!-- 진출입 타임라인 로그 목록 -->
+        <div class="mt-2">
+          <div class="text-xs font-bold text-gray-400 mb-1.5 flex items-center justify-between">
+            <span>📋 시간대별 진출입 타임라인 (최신순)</span>
+            <span class="text-[11px] text-gray-500">기록 클릭 시 개별 수정/삭제 가능</span>
+          </div>
+
+          <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+            ${reverseLogs.length === 0 ? `
+              <div class="text-center text-xs text-gray-500 py-6">출입 기록이 없습니다.</div>
+            ` : reverseLogs.map((log, idx) => {
+              const isEntry = log.action_type === 'ENTRY';
+              const logDate = new Date(log.tagged_at);
+              const timeFormatted = logDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+              const dateFormatted = `${logDate.getMonth() + 1}/${logDate.getDate()}`;
+              const durSec = logDurations[log.id];
+              let durationBadge = '';
+              if (!isEntry && durSec !== undefined) {
+                durationBadge = `<span class="text-[10px] text-yellow-300 bg-yellow-950/80 px-1.5 py-0.5 rounded border border-yellow-800 font-mono">체류: ${Math.floor(durSec / 60)}분 ${durSec % 60}초</span>`;
+              } else if (isEntry && idx === 0 && isInside) {
+                durationBadge = `<span class="text-[10px] text-green-300 bg-green-950/80 px-1.5 py-0.5 rounded border border-green-800 font-mono">진입 활동 중</span>`;
+              }
+              const loc = log.location || memberSectors[member.id] || '미지정';
+
+              return `
+                <div class="p-2 bg-gray-950/90 rounded-xl border border-gray-800 flex items-center justify-between gap-2 hover:border-gray-700 transition">
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span class="px-2 py-0.5 rounded text-[11px] font-black shrink-0 ${isEntry ? 'bg-green-700 text-white' : 'bg-red-700 text-white'}">
+                      ${isEntry ? '🟢 진입' : '🔴 철수'}
+                    </span>
+                    <span class="text-xs font-mono font-bold text-gray-200 shrink-0">${dateFormatted} ${timeFormatted}</span>
+                    ${durationBadge}
+                    ${loc && loc !== '미지정' ? `<span class="text-xs text-amber-300 font-bold truncate">📍${loc}</span>` : ''}
+                    <span class="text-[10px] text-gray-500 shrink-0">${log.is_manual ? '[수동입력]' : '[QR스캔]'}</span>
+                  </div>
+                  <button onclick="openEditLogModal('${log.id}')" 
+                          class="px-2 py-1 bg-gray-800 hover:bg-yellow-500 text-gray-300 hover:text-black font-bold text-xs rounded-lg border border-gray-700 transition shrink-0" 
+                          title="이 출입 기록 수정 / 삭제">
+                    ✏️ 수정
+                  </button>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    }
+
+    // ==========================================
+    // 4. 출입 오기록 수정 및 삭제 모달
+    // ==========================================
+    function openEditLogModal(logId) {
+      const log = rawLogs.find(l => l.id === logId);
+      if (!log) return;
+
+      const member = firefightersMap[log.firefighter_id] || firefightersMap[log.qr_token] || {
+        name: '미등록 대원',
+        rank: '대원',
+        team_name: '현장'
+      };
+
+      // 기존 기록 시간을 datetime-local 포맷(YYYY-MM-DDTHH:mm)으로 변환
+      const logDate = new Date(log.tagged_at);
+      const localIso = new Date(logDate.getTime() - (logDate.getTimezoneOffset() * 60000)).toISOString().slice(0, 16);
+
+      const modalId = 'editLogModal';
+      const existing = document.getElementById(modalId);
+      if (existing) existing.remove();
+
+      const modalHtml = `
+        <div id="${modalId}" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
+          <div style="background:#1f2937;color:#fff;padding:24px;border-radius:20px;max-width:480px;width:100%;border:1px solid #374151;font-family:sans-serif;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <h2 style="font-size:1.25rem;font-weight:900;color:#eab308;display:flex;align-items:center;gap:6px;">
+                <span>✏️</span> 출입 기록 수정 / 삭제
+              </h2>
+              <button onclick="document.getElementById('${modalId}').remove()" style="background:none;border:none;color:#9ca3af;font-size:1.5rem;cursor:pointer;">✕</button>
+            </div>
+            
+            <p style="font-size:0.8rem;color:#9ca3af;margin-bottom:16px;">
+              잘못 기록된 진입/철수 상태나 태깅 시간을 바로잡을 수 있습니다.
+            </p>
+
+            <!-- 대상 대원 정보 -->
+            <div style="background:#111827;padding:12px;border-radius:12px;border:1px solid #374151;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <div style="font-size:1rem;font-weight:900;color:#fff;">${member.rank} ${member.name}</div>
+                <div style="font-size:0.75rem;color:#f87171;">${member.team_name}</div>
+              </div>
+              <span style="font-size:0.75rem;padding:4px 8px;border-radius:6px;background:#374151;color:#d1d5db;">
+                ${log.is_manual ? '수동 입력 건' : 'QR 스캔 건'}
+              </span>
+            </div>
+
+            <!-- 구분(진입 / 철수) 선택 -->
+            <div style="margin-bottom:14px;">
+              <label style="display:block;font-size:0.75rem;font-weight:bold;color:#d1d5db;margin-bottom:6px;">출입 상태 구분 *</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <label id="labelEditEntry" style="padding:10px;border-radius:10px;border:2px solid ${log.action_type === 'ENTRY' ? '#22c55e' : '#374151'};background:${log.action_type === 'ENTRY' ? '#14532d' : '#111827'};text-align:center;font-weight:bold;font-size:0.9rem;cursor:pointer;display:block;">
+                  <input type="radio" name="editActionType" value="ENTRY" ${log.action_type === 'ENTRY' ? 'checked' : ''} onchange="updateEditRadioUI()" style="display:none;" />
+                  🟢 진입 (ENTRY)
+                </label>
+                <label id="labelEditExit" style="padding:10px;border-radius:10px;border:2px solid ${log.action_type === 'EXIT' ? '#ef4444' : '#374151'};background:${log.action_type === 'EXIT' ? '#7f1d1d' : '#111827'};text-align:center;font-weight:bold;font-size:0.9rem;cursor:pointer;display:block;">
+                  <input type="radio" name="editActionType" value="EXIT" ${log.action_type === 'EXIT' ? 'checked' : ''} onchange="updateEditRadioUI()" style="display:none;" />
+                  🔴 철수 (EXIT)
+                </label>
+              </div>
+            </div>
+
+            <!-- 진입 장소 / 활동 방면 수기 수정 -->
+            <div style="margin-bottom:14px;">
+              <label style="display:block;font-size:0.75rem;font-weight:bold;color:#d1d5db;margin-bottom:6px;">진입 장소 / 활동 구역 (수기 직접 수정)</label>
+              <input id="inputEditLocation" type="text" value="${log.location || memberSectors[member.id] || ''}" 
+                     placeholder="예: 1방면 2층 수색, 301호 진입, 지하1층 기계실 등" 
+                     style="width:100%;padding:10px;border-radius:8px;background:#111827;border:1px solid #4b5563;color:#fff;font-size:0.875rem;box-sizing:border-box;" />
+            </div>
+
+            <!-- 태깅 일시 수정 -->
+            <div style="margin-bottom:20px;">
+              <label style="display:block;font-size:0.75rem;font-weight:bold;color:#d1d5db;margin-bottom:6px;">태깅 일시 (시간 보정) *</label>
+              <input id="inputEditTime" type="datetime-local" value="${localIso}" 
+                     style="width:100%;padding:10px;border-radius:8px;background:#111827;border:1px solid #4b5563;color:#fff;font-size:0.875rem;box-sizing:border-box;" />
+            </div>
+
+            <!-- 하단 버튼: 삭제 vs 저장 -->
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <button onclick="deleteLogRecord('${log.id}')" 
+                      style="padding:10px 16px;border-radius:8px;background:#7f1d1d;color:#fca5a5;border:1px solid #991b1b;font-weight:bold;font-size:0.875rem;cursor:pointer;">
+                🗑️ 기록 삭제
+              </button>
+              <div style="display:flex;gap:8px;">
+                <button onclick="document.getElementById('${modalId}').remove()" 
+                        style="padding:10px 16px;border-radius:8px;background:#374151;color:#fff;border:none;cursor:pointer;font-size:0.875rem;">
+                  취소
+                </button>
+                <button onclick="saveLogEdit('${log.id}')" 
+                        style="padding:10px 20px;border-radius:8px;background:#eab308;color:#000;border:none;font-weight:black;font-size:0.875rem;cursor:pointer;">
+                  💾 수정 저장
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    }
+
+    function updateEditRadioUI() {
+      const selected = document.querySelector('input[name="editActionType"]:checked').value;
+      const entryLabel = document.getElementById('labelEditEntry');
+      const exitLabel = document.getElementById('labelEditExit');
+      if (selected === 'ENTRY') {
+        entryLabel.style.borderColor = '#22c55e';
+        entryLabel.style.background = '#14532d';
+        exitLabel.style.borderColor = '#374151';
+        exitLabel.style.background = '#111827';
+      } else {
+        entryLabel.style.borderColor = '#374151';
+        entryLabel.style.background = '#111827';
+        exitLabel.style.borderColor = '#ef4444';
+        exitLabel.style.background = '#7f1d1d';
+      }
+    }
+
+    async function saveLogEdit(logId) {
+      const actionType = document.querySelector('input[name="editActionType"]:checked').value;
+      const timeVal = document.getElementById('inputEditTime').value;
+      const locInp = document.getElementById('inputEditLocation');
+      const newLoc = locInp ? locInp.value.trim() : null;
+      if (!timeVal) return alert("태깅 시간을 입력해주세요.");
+
+      const newTimestamp = new Date(timeVal).toISOString();
+      const client = getSafeSupabaseClient();
+      if (!client) return alert("Supabase 연결이 필요합니다.");
+
+      const updateData = {
+        action_type: actionType,
+        tagged_at: newTimestamp
+      };
+      if (newLoc !== null) {
+        updateData.location = newLoc || '미지정';
+      }
+
+      let { error } = await client
+        .from('entry_exit_logs')
+        .update(updateData)
+        .eq('id', logId);
+
+      // location 컬럼이 없는 구버전 스키마일 경우 기본 필드만 다시 저장
+      if (error && error.message && error.message.includes('location')) {
+        const res = await client
+          .from('entry_exit_logs')
+          .update({
+            action_type: actionType,
+            tagged_at: newTimestamp
+          })
+          .eq('id', logId);
+        error = res.error;
+      }
+
+      if (error) {
+        alert("수정 실패: " + error.message);
+      } else {
+        // 로컬 방면 캐시도 업데이트
+        const targetLog = rawLogs.find(l => l.id === logId);
+        if (targetLog && newLoc !== null) {
+          const mId = targetLog.firefighter_id || targetLog.qr_token;
+          memberSectors[mId] = newLoc || '미지정';
+          try {
+            localStorage.setItem('FP_SECTORS_' + currentScene.id, JSON.stringify(memberSectors));
+          } catch (e) {}
+        }
+
+        alert("출입 기록 및 진입장소가 성공적으로 수정되었습니다!");
+        const modal = document.getElementById('editLogModal');
+        if (modal) modal.remove();
+        await fetchAllLogs(); // 전체 상태 즉시 재계산 및 화면 갱신
+      }
+    }
+
+    async function deleteLogRecord(logId) {
+      if (!confirm("정말 이 출입 기록을 삭제하시겠습니까?\n삭제 시 현장 진입/체류 상태가 이전 시점으로 즉시 복구됩니다.")) return;
+
+      const client = getSafeSupabaseClient();
+      if (!client) return alert("Supabase 연결이 필요합니다.");
+
+      const { error } = await client
+        .from('entry_exit_logs')
+        .delete()
+        .eq('id', logId);
+
+      if (error) {
+        alert("삭제 실패: " + error.message);
+      } else {
+        alert("출입 기록이 삭제되었습니다.");
+        const modal = document.getElementById('editLogModal');
+        if (modal) modal.remove();
+        await fetchAllLogs(); // 전체 상태 즉시 재계산 및 화면 갱신
+      }
+    }
+
+    // ==========================================
+    // ==========================================
+    // 5. 재난현장 대원 활동 방면/진입장소 수기 지정 모달
+    // ==========================================
+    function openSectorModal(memberId, name, rank, teamName) {
+      const modalId = 'sectorSelectModal';
+      const existing = document.getElementById(modalId);
+      if (existing) existing.remove();
+
+      const currentSector = memberSectors[memberId] || (activeEntries[memberId] ? activeEntries[memberId].sector : '미지정');
+      const initialVal = (currentSector && currentSector !== '미지정') ? currentSector : '';
+
+      const presetSectors = [
+        { label: '1방면 (건물 전면)', icon: '🏢' },
+        { label: '2방면 (건물 우측)', icon: '🏢' },
+        { label: '3방면 (건물 후면)', icon: '🏢' },
+        { label: '4방면 (건물 좌측)', icon: '🏢' },
+        { label: '내부 진입 (수색·구조)', icon: '🔍' },
+        { label: '내부 진입 (화점 진압)', icon: '🔥' },
+        { label: '지하층 진입', icon: '🕳️' },
+        { label: '옥상층 / 피난구역', icon: '🪜' },
+        { label: 'RIT (신속동료구조)', icon: '🚨' },
+        { label: 'CP (현장지휘소)', icon: '⛺' }
+      ];
+
+      const modalHtml = `
+        <div id="${modalId}" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
+          <div style="background:#1f2937;color:#fff;padding:24px;border-radius:20px;max-width:540px;width:100%;border:1px solid #374151;font-family:sans-serif;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);max-height:90vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <h2 style="font-size:1.25rem;font-weight:900;color:#f59e0b;display:flex;align-items:center;gap:6px;">
+                <span>✍️</span> 대원 진입장소 수기 입력 / 수정
+              </h2>
+              <button onclick="document.getElementById('${modalId}').remove()" style="background:none;border:none;color:#9ca3af;font-size:1.5rem;cursor:pointer;">✕</button>
+            </div>
+            
+            <!-- 대상 대원 정보 -->
+            <div style="background:#111827;padding:12px 16px;border-radius:12px;border:1px solid #374151;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+              <div>
+                <span style="font-size:0.75rem;color:#f87171;font-weight:bold;">${teamName}</span>
+                <div style="font-size:1.1rem;font-weight:900;color:#fff;">${rank} ${name}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:0.7rem;color:#9ca3af;">현재 기록된 장소</div>
+                <div style="font-size:0.875rem;font-weight:bold;color:#f59e0b;">${currentSector}</div>
+              </div>
+            </div>
+
+            <!-- 1. 핵심: 수기 직접 입력/수정 입력창 -->
+            <div style="margin-bottom:16px;background:#111827;padding:14px;border-radius:12px;border:2px solid #f59e0b;">
+              <label style="display:block;font-size:0.8rem;font-weight:bold;color:#fcd34d;margin-bottom:6px;">
+                ✍️ 진입 장소 수기 입력 / 수정 (자유롭게 입력 가능)
+              </label>
+              <div style="display:flex;gap:8px;">
+                <input id="inputSectorManual" type="text" 
+                       value="${initialVal}" 
+                       placeholder="예: 1방면 2층 수색, 302호 진입, 지하1층 기계실 등" 
+                       style="flex:1;padding:12px;border-radius:8px;background:#1f2937;border:1px solid #4b5563;color:#fff;font-size:0.95rem;font-weight:bold;box-sizing:border-box;"
+                       onkeypress="if(event.key==='Enter') saveManualSector('${memberId}')" />
+                <button onclick="saveManualSector('${memberId}')" 
+                        style="padding:12px 20px;border-radius:8px;background:#f59e0b;color:#000;border:none;font-weight:900;font-size:0.95rem;cursor:pointer;white-space:nowrap;box-shadow:0 4px 6px -1px rgba(0,0,0,0.2);">
+                  💾 저장
+                </button>
+              </div>
+              <div style="font-size:0.75rem;color:#9ca3af;margin-top:6px;">
+                ※ 아래 버튼을 누르면 입력창에 자동 입력되어 손쉽게 덧붙여 수기로 수정할 수 있습니다.
+              </div>
+            </div>
+
+            <!-- 2. 빠른 보조 키워드 (클릭 시 입력창에 반영 또는 즉시지정) -->
+            <div style="margin-bottom:14px;">
+              <div style="font-size:0.75rem;font-weight:bold;color:#9ca3af;margin-bottom:8px;">
+                ⚡ 빠른 방면 선택 (클릭 시 입력창에 넣고 수정하거나, [즉시] 버튼 클릭)
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+                ${presetSectors.map(s => `
+                  <div style="display:flex;align-items:center;justify-content:space-between;background:#111827;padding:8px 10px;border-radius:10px;border:1px solid #374151;">
+                    <span onclick="insertSectorKeyword('${s.label}')" 
+                          style="font-size:0.8rem;font-weight:bold;color:#e5e7eb;cursor:pointer;display:flex;align-items:center;gap:4px;flex:1;"
+                          title="클릭하여 입력창에 넣기">
+                      <span>${s.icon}</span> <span>${s.label}</span>
+                    </span>
+                    <button type="button" onclick="setMemberSector('${memberId}', '${s.label}')" 
+                            style="padding:4px 8px;border-radius:6px;background:#374151;color:#fcd34d;border:1px solid #4b5563;font-size:0.7rem;font-weight:bold;cursor:pointer;white-space:nowrap;margin-left:4px;"
+                            title="이 방면으로 즉시 저장">
+                      즉시
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- 3. 상세 세부 구역 보조 태그 (클릭 시 입력창 뒤에 덧붙임) -->
+            <div style="margin-bottom:16px;">
+              <div style="font-size:0.75rem;font-weight:bold;color:#9ca3af;margin-bottom:6px;">
+                ➕ 세부 층/활동 덧붙이기 (클릭 시 뒤에 추가)
+              </div>
+              <div style="display:flex;flex-wrap:wrap;gap:5px;">
+                ${['1층', '2층', '3층', '4층', '지하1층', '지하2층', '옥상층', '피난계단', '인명수색', '화점진압', '연소저지'].map(tag => `
+                  <button type="button" onclick="appendSectorTag('${tag}')" 
+                          style="padding:5px 9px;border-radius:6px;background:#111827;color:#93c5fd;border:1px solid #1e3a8a;font-size:0.75rem;font-weight:bold;cursor:pointer;">
+                    + ${tag}
+                  </button>
+                `).join('')}
+              </div>
+            </div>
+
+            <!-- 하단 초기화 및 닫기 -->
+            <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #374151;padding-top:14px;">
+              <button onclick="setMemberSector('${memberId}', '미지정')" 
+                      style="padding:8px 14px;border-radius:8px;background:#374151;color:#f87171;border:none;font-size:0.8rem;font-weight:bold;cursor:pointer;">
+                🗑️ 초기화 (미지정)
+              </button>
+              <div style="display:flex;gap:8px;">
+                <button onclick="document.getElementById('${modalId}').remove()" 
+                        style="padding:8px 16px;border-radius:8px;background:#4b5563;color:#fff;border:none;font-size:0.85rem;cursor:pointer;">
+                  취소
+                </button>
+                <button onclick="saveManualSector('${memberId}')" 
+                        style="padding:8px 20px;border-radius:8px;background:#f59e0b;color:#000;border:none;font-weight:900;font-size:0.85rem;cursor:pointer;">
+                  💾 수기 입력 저장
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+      // 모달 열림 즉시 수기 입력창으로 포커스 이동 및 텍스트 선택
+      setTimeout(() => {
+        const inp = document.getElementById('inputSectorManual');
+        if (inp) {
+          inp.focus();
+          inp.select();
+        }
+      }, 50);
+    }
+
+    function insertSectorKeyword(keyword) {
+      const input = document.getElementById('inputSectorManual');
+      if (input) {
+        input.value = keyword;
+        input.focus();
+      }
+    }
+
+    function appendSectorTag(tag) {
+      const input = document.getElementById('inputSectorManual');
+      if (input) {
+        input.value = input.value.trim() ? `${input.value.trim()} ${tag}` : tag;
+        input.focus();
+      }
+    }
+
+    function saveManualSector(memberId) {
+      const input = document.getElementById('inputSectorManual');
+      const val = input ? input.value.trim() : '';
+      setMemberSector(memberId, val || '미지정');
+    }
+
+    async function setMemberSector(memberId, sectorName) {
+      memberSectors[memberId] = sectorName;
+      try {
+        localStorage.setItem('FP_SECTORS_' + currentScene.id, JSON.stringify(memberSectors));
+      } catch (e) {}
+
+      if (activeEntries[memberId]) {
+        activeEntries[memberId].sector = sectorName;
+      }
+
+      // 모달 닫기
+      const modal = document.getElementById('sectorSelectModal');
+      if (modal) modal.remove();
+
+      // 화면 즉시 갱신
+      renderInsideGrid();
+
+      // 실시간 브로드캐스트 전송 (다른 기기 상황판에 즉시 동기화)
+      if (realtimeChannel) {
+        try {
+          realtimeChannel.send({
+            type: 'broadcast',
+            event: 'sector_update',
+            payload: { memberId: memberId, sector: sectorName }
+          });
+        } catch (e) {
+          console.warn("Realtime broadcast failed:", e);
+        }
+      }
+
+      // Supabase entry_exit_logs 테이블의 location 컬럼 업데이트 시도 (컬럼 존재 시 DB 영구 저장)
+      if (supabaseClient && activeEntries[memberId] && activeEntries[memberId].logId) {
+        try {
+          await supabaseClient
+            .from('entry_exit_logs')
+            .update({ location: sectorName })
+            .eq('id', activeEntries[memberId].logId);
+        } catch (err) {
+          console.log("DB location column update skipped:", err);
+        }
+      }
     }
 
     // ==========================================
@@ -441,7 +1364,7 @@
         return;
       }
 
-      let csvContent = "\uFEFF일시,구분,소속,계급,성명,수동입력여부,QR토큰\n";
+      let csvContent = "\uFEFF일시,구분,소속,계급,성명,활동방면,수동입력여부,QR토큰\n";
 
       rawLogs.forEach(log => {
         const member = firefightersMap[log.firefighter_id] || firefightersMap[log.qr_token] || {
@@ -452,8 +1375,9 @@
         const timeStr = new Date(log.tagged_at).toLocaleString();
         const actionStr = log.action_type === 'ENTRY' ? '진입' : '철수';
         const manualStr = log.is_manual ? '수동' : 'QR스캔';
+        const sectorStr = log.location || memberSectors[member.id] || '미지정';
 
-        csvContent += `"${timeStr}","${actionStr}","${member.team_name}","${member.rank}","${member.name}","${manualStr}","${log.qr_token}"\n`;
+        csvContent += `"${timeStr}","${actionStr}","${member.team_name}","${member.rank}","${member.name}","${sectorStr}","${manualStr}","${log.qr_token}"\n`;
       });
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -465,6 +1389,99 @@
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    }
+
+    // config.js 누락 시 자체 내장 방 관리 함수
+    if (typeof openSceneModal !== 'function') {
+      window.getActiveScene = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramId = urlParams.get('scene');
+        const paramTitle = urlParams.get('title');
+        if (paramId) {
+          localStorage.setItem('FP_SCENE_ID', paramId);
+          if (paramTitle) localStorage.setItem('FP_SCENE_TITLE', decodeURIComponent(paramTitle));
+          return { id: paramId, title: paramTitle ? decodeURIComponent(paramTitle) : '현장 훈련' };
+        }
+        return {
+          id: localStorage.getItem('FP_SCENE_ID') || "11111111-1111-1111-1111-111111111111",
+          title: localStorage.getItem('FP_SCENE_TITLE') || "역삼119 관내 테스트 현장"
+        };
+      };
+
+      window.setActiveScene = function(id, title) {
+        localStorage.setItem('FP_SCENE_ID', id);
+        localStorage.setItem('FP_SCENE_TITLE', title);
+        const url = new URL(window.location.href);
+        url.searchParams.set('scene', id);
+        url.searchParams.set('title', encodeURIComponent(title));
+        window.location.href = url.toString();
+      };
+
+      window.openSceneModal = async function() {
+        const client = getSafeSupabaseClient();
+        const modalId = 'sceneSelectModal';
+        const existing = document.getElementById(modalId);
+        if (existing) existing.remove();
+
+        const modalHtml = `
+          <div id="${modalId}" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;">
+            <div style="background:#1f2937;color:#fff;padding:24px;border-radius:20px;max-width:540px;width:100%;border:1px solid #374151;font-family:sans-serif;box-shadow:0 25px 50px -12px rgba(0,0,0,0.5);">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                <h2 style="font-size:1.25rem;font-weight:900;color:#ef4444;">🏢 훈련 / 출동 방 선택</h2>
+                <button onclick="document.getElementById('${modalId}').remove()" style="background:none;border:none;color:#9ca3af;font-size:1.5rem;cursor:pointer;">✕</button>
+              </div>
+              <p style="font-size:0.8rem;color:#9ca3af;margin-bottom:16px;">새 훈련 시 새 방을 생성하면 이전 기록 없이 깨끗하게 시작됩니다.</p>
+              
+              <div style="background:#111827;padding:14px;border-radius:14px;border:1px solid #374151;margin-bottom:16px;">
+                <div style="font-size:0.75rem;font-weight:bold;color:#f87171;margin-bottom:6px;">➕ 새로운 훈련 방 만들기</div>
+                <div style="display:flex;gap:6px;">
+                  <input id="inputNewSceneTitle" type="text" placeholder="예: 9월 정기 소방훈련" style="flex:1;padding:10px;border-radius:8px;background:#1f2937;border:1px solid #4b5563;color:#fff;" />
+                  <button onclick="inlineCreateScene()" style="padding:10px 16px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">방 생성</button>
+                </div>
+              </div>
+
+              <div style="font-size:0.75rem;font-weight:bold;color:#d1d5db;margin-bottom:8px;">📋 진행 중인 훈련 방 목록</div>
+              <div id="sceneListContainer" style="max-height:220px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;margin-bottom:16px;">
+                <div style="font-size:0.8rem;color:#9ca3af;text-align:center;padding:16px;">불러오는 중...</div>
+              </div>
+              <div style="display:flex;justify-content:flex-end;">
+                <button onclick="document.getElementById('${modalId}').remove()" style="padding:8px 18px;border-radius:8px;background:#4b5563;color:#fff;border:none;cursor:pointer;">닫기</button>
+              </div>
+            </div>
+          </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+        if (client) {
+          const { data } = await client.from('incident_scenes').select('*').order('created_at', { ascending: false });
+          const container = document.getElementById('sceneListContainer');
+          const current = getActiveScene();
+          if (data && data.length > 0) {
+            container.innerHTML = data.map(s => `
+              <div onclick="setActiveScene('${s.id}', '${s.title.replace(/'/g, "\\'")}')" 
+                   style="padding:12px;border-radius:10px;background:${s.id === current.id ? '#374151' : '#111827'};border:1px solid ${s.id === current.id ? '#ef4444' : '#374151'};display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+                <div>
+                  <div style="font-weight:bold;color:${s.id === current.id ? '#f87171' : '#fff'};">${s.id === current.id ? '✔ ' : ''}${s.title}</div>
+                  <div style="font-size:0.7rem;color:#9ca3af;">개설일: ${new Date(s.created_at).toLocaleDateString()}</div>
+                </div>
+                <span style="font-size:0.75rem;padding:4px 8px;border-radius:6px;background:${s.id === current.id ? '#ef4444' : '#4b5563'};color:#fff;font-weight:bold;">
+                  ${s.id === current.id ? '현재 방' : '들어가기'}
+                </span>
+              </div>
+            `).join('');
+          }
+        }
+      };
+
+      window.inlineCreateScene = async function() {
+        const title = document.getElementById('inputNewSceneTitle').value.trim();
+        if (!title) return alert("훈련 방 이름을 입력해주세요.");
+        const client = getSafeSupabaseClient();
+        const newId = crypto.randomUUID();
+        const { error } = await client.from('incident_scenes').insert([{ id: newId, title: title, time_limit_minutes: 30, status: 'ACTIVE' }]);
+        if (error) alert("생성 실패: " + error.message);
+        else setActiveScene(newId, title);
+      };
     }
 
     window.addEventListener('DOMContentLoaded', initDashboard);
