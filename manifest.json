@@ -1,13 +1,22 @@
 {
-  "name": "소방 1차 통제선 안전관리 (FirePass)",
-  "short_name": "소방통제선",
-  "description": "화재 및 구조 현장 1차 통제선 대원 진입/철수 실시간 안전관리 시스템",
+  "name": "소방대원출입관리 (FirePass)",
+  "short_name": "소방대원출입관리",
+  "description": "재난현장 소방대원 진입/철수 실시간 출입 및 안전관리 시스템",
+  "id": "/firepass/",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#111827",
   "theme_color": "#991b1b",
+  "categories": ["utilities", "productivity"],
   "icons": [
+    {
+      "src": "fire_emblem.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
     {
       "src": "https://cdn-icons-png.flaticon.com/512/924/924968.png",
       "sizes": "192x192",

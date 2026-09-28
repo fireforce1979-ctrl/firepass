@@ -1,6 +1,6 @@
-# 🚒 소방 현장 1차 통제선 안전관리 시스템 (FirePass)
+# 🚒 소방대원출입관리 시스템 (FirePass)
 
-스마트폰 모바일 앱 설치 없이 웹 브라우저(PWA)에서 구동되며, **Supabase 무료 티어(PostgreSQL + Realtime)**와 **로컬 오프라인 저장소(IndexedDB)**를 연동한 1차 통제선 안전통제 시스템입니다.
+스마트폰 모바일 앱(PWA/APK)과 웹 브라우저에서 모두 구동되며, **Supabase 무료 티어(PostgreSQL + Realtime)**와 **로컬 오프라인 저장소(IndexedDB)**를 연동한 현장 소방대원 실시간 출입 및 안전관리 시스템입니다.
 
 ---
 

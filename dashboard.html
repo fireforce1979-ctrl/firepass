@@ -6,7 +6,8 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta http-equiv="Pragma" content="no-cache" />
   <meta http-equiv="Expires" content="0" />
-  <title>재난현장 대원안전 관제상황판 (FirePass)</title>
+  <title>소방대원출입관리 관제상황판 (FirePass)</title>
+  <link rel="icon" type="image/png" href="fire_emblem.png">
   
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -38,9 +39,9 @@
     <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
       <!-- 좌측: 엠블럼 + 메인 타이틀 + 실시간 상태 배지 (깔끔한 1행 수평 정렬) -->
       <div class="flex items-center gap-3">
-        <img src="fire_emblem.png" alt="대한민국 소방 엠블럼" class="h-10 w-auto object-contain drop-shadow shrink-0" />
+        <img src="fire_emblem.png" alt="대한민국 소방 새매 엠블럼" class="h-10 w-auto object-contain drop-shadow shrink-0" />
         <div class="flex flex-wrap items-center gap-2.5">
-          <h1 class="font-black text-xl sm:text-2xl tracking-tight text-white">재난현장 대원안전 관제상황판</h1>
+          <h1 class="font-black text-xl sm:text-2xl tracking-tight text-white">소방대원출입관리 관제상황판</h1>
           <span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-500/20 text-green-400 border border-green-500/30 flex items-center gap-1.5 shrink-0">
             <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
             실시간 연동 중
@@ -73,13 +74,13 @@
   <!-- 2. 핵심 지표 KPI 카드 (2단 화이트 헤더 & 클릭 시 실시간 스트림 필터링) -->
   <div class="max-w-7xl mx-auto w-full p-4 grid grid-cols-2 md:grid-cols-4 gap-3">
 
-    <!-- 1. 통제선 진입인원 -->
+    <!-- 1. 통제선 진입대원 -->
     <div id="kpiCardENTRY" onclick="setStreamFilter('ENTRY')" 
          class="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden flex flex-col justify-between cursor-pointer hover:border-green-400 hover:shadow-xl transition group active:scale-[0.98]">
       <div class="bg-white px-3.5 py-2.5 border-b border-gray-300 flex items-center justify-between">
         <span class="text-xs sm:text-sm font-black text-black tracking-tight flex items-center gap-1.5">
           <span class="w-2.5 h-2.5 rounded-full bg-green-500 inline-block shrink-0"></span>
-          통제선 진입인원
+          통제선 진입대원
         </span>
         <span class="text-[10px] font-bold text-gray-500 group-hover:text-black">기록보기 ➔</span>
       </div>
@@ -132,13 +133,13 @@
       </div>
     </div>
 
-    <!-- 4. 총 투입 누적 인원 -->
+    <!-- 4. 총 투입 누적대원 -->
     <div id="kpiCardALL" onclick="setStreamFilter('ALL')" 
          class="bg-gray-900 border border-gray-700 rounded-xl overflow-hidden flex flex-col justify-between cursor-pointer hover:border-yellow-400 hover:shadow-xl transition group active:scale-[0.98]">
       <div class="bg-white px-3.5 py-2.5 border-b border-gray-300 flex items-center justify-between">
         <span class="text-xs sm:text-sm font-black text-black tracking-tight flex items-center gap-1.5">
           <span class="w-2.5 h-2.5 rounded-full bg-gray-600 inline-block shrink-0"></span>
-          총 투입 누적 인원
+          총 투입 누적대원
         </span>
         <span class="text-[10px] font-bold text-gray-500 group-hover:text-black">전체보기 ➔</span>
       </div>
@@ -171,7 +172,7 @@
         </div>
       </div>
 
-      <!-- 대원별 상세 진출입 기록 패널 (우측 스트림 인원 클릭 시 표시) -->
+      <!-- 대원별 상세 진출입 기록 패널 (우측 스트림 대원 클릭 시 표시) -->
       <div id="selectedMemberHistoryPanel" class="hidden mb-3 p-4 bg-gray-900 border-2 border-amber-500 rounded-2xl shadow-2xl transition-all">
         <!-- JS로 동적 렌더링 -->
       </div>
